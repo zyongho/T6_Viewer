@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MyTeslaViewer 도움말</title>
+<style>
+  :root {
+    --bg: #101318; --panel: #171c24; --line: #2a3441; --text: #dce4ed; --muted: #9aa8b8;
+    --accent: #59b5ff; --red: #e53935; --amber: #ffb547; --green: #48cf76;
+  }
+  @media (prefers-color-scheme: light) {
+    :root { --bg: #f5f7fa; --panel: #ffffff; --line: #d9e0e8; --text: #1c2530; --muted: #5b6b7c; --accent: #1f6bd6; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font: 15px/1.65 "Malgun Gothic", "Apple SD Gothic Neo", system-ui, sans-serif; }
+  header { padding: 28px 16px 20px; border-bottom: 1px solid var(--line); background: var(--panel); }
+  header .wrap, main { max-width: 920px; margin: 0 auto; }
+  h1 { margin: 0 0 4px; font-size: 26px; }
+  header p { margin: 0; color: var(--muted); }
+  nav { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 14px; font-size: 14px; }
+  nav a { color: var(--accent); text-decoration: none; }
+  main { padding: 8px 16px 48px; }
+  section { border-bottom: 1px solid var(--line); padding: 18px 0 10px; }
+  h2 { font-size: 20px; margin: 6px 0 10px; }
+  h3 { font-size: 16px; margin: 16px 0 6px; }
+  p, li { max-width: 72ch; }
+  ul { padding-left: 20px; }
+  code, kbd { font-family: Consolas, monospace; font-size: 13px; background: var(--panel);
+              border: 1px solid var(--line); border-radius: 4px; padding: 1px 5px; }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 6px 8px; text-align: left; vertical-align: top; }
+  th { background: var(--panel); }
+  .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 4px; }
+  .note { background: var(--panel); border-left: 3px solid var(--accent); padding: 8px 12px; margin: 10px 0; }
+  .warn { border-left-color: var(--amber); }
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <h1>MyTeslaViewer 도움말</h1>
+    <p>테슬라 블랙박스(TeslaCam) 영상을 6개 카메라 동시에 보고, 주차 중 움직임을 빠르게 찾는 PC 프로그램입니다. 영상은 이 PC에서만 처리합니다.</p>
+    <nav>
+      <a href="#start">시작하기</a><a href="#screen">화면 구성</a><a href="#list">목록·필터</a>
+      <a href="#play">재생·배속</a><a href="#skip">움직임 찾기</a><a href="#analysis">분석</a>
+      <a href="#map">지도·주행 정보</a><a href="#decrypt">복호화</a><a href="#settings">설정</a>
+      <a href="#files">파일 위치·삭제</a><a href="#trouble">문제 해결</a>
+    </nav>
+  </div>
+</header>
+<main>
+
+<section id="start">
+  <h2>시작하기</h2>
+  <ol>
+    <li>왼쪽 위 <b>📂 TeslaCam 열기</b>로 USB 드라이브나 <code>TeslaCam</code> 폴더를 고릅니다. 폴더를 창에 끌어 놓아도 됩니다.</li>
+    <li>목록에서 영상을 한 번 누르면 영상 영역에 <b>썸네일</b>이, 두 번 누르면 바로 재생됩니다.</li>
+    <li>재생이 끝나면 다음(더 늦은 시각) 영상이 자동으로 이어서 재생됩니다.</li>
+  </ol>
+  <div class="note">최근 차량 소프트웨어(2026.20 이후)는 영상을 암호화해 저장합니다. 암호화된 영상은 먼저 <a href="#decrypt">복호화</a>해야 볼 수 있습니다.</div>
+</section>
+
+<section id="screen">
+  <h2>화면 구성</h2>
+  <p>화면은 <b>탐색 | 영상 | 지도</b> 세 부분입니다.</p>
+  <ul>
+    <li><b>탐색</b>: 위쪽에 열기·복호화·설정·정보 버튼, 아래에 영상 목록.</li>
+    <li><b>영상</b>: 위쪽 카메라 버튼으로 보고 싶은 채널만 켭니다. 영상을 더블클릭하면 그 채널만 크게 보고, 다시 더블클릭하면 돌아옵니다.
+      카메라 줄 양 끝의 <b>◀ / ▶</b> 버튼으로 목록과 지도를 숨기거나 다시 엽니다(경계 막대를 끌어도 됩니다).</li>
+    <li><b>썸네일</b>: 목록에서 고른 영상의 대표 화면 한 장.</li>
+    <li><b>스토리보드</b>: 각 영상 아래의 시간 순서 대표 장면 띠. 누르면 그 시점부터 재생합니다.</li>
+    <li><b>지도</b>: 영상 위치와 경로, 아래에 속도·기어 등 주행 정보.</li>
+    <li>오른쪽 아래 상태 표시줄에 지금 하고 있는 작업(분석 진행, 메모리 사용량 등)이 나옵니다.</li>
+  </ul>
+</section>
+
+<section id="list">
+  <h2>목록·필터</h2>
+  <table>
+    <tr><th>열</th><th>내용</th><th>제목을 누르면</th></tr>
+    <tr><td>일시</td><td>녹화 날짜(요일)·시각</td><td>날짜 범위·시간 범위(자정 넘김 가능)·요일</td></tr>
+    <tr><td>복호</td><td>🔓 복호됨 · 🔒 암호화</td><td>상태별 선택</td></tr>
+    <tr><td>폴더</td><td>최근(RecentClips)·저장(SavedClips)·감시(SentryClips)</td><td>폴더별 선택</td></tr>
+    <tr><td>주행</td><td>차량이 달리는 중이었는지(SEI 속도·기어 기준)</td><td>주행·정지·정보 없음</td></tr>
+    <tr><td>Event</td><td>event.json 정보 유무</td><td>Yes / No</td></tr>
+    <tr><td>분석</td><td>객체 인식·스토리보드·SEI 진행률(원형 아이콘)</td><td>완료·진행 중·시작 전</td></tr>
+  </table>
+  <p>필터가 걸린 열은 제목 옆 표시가 바뀝니다. 재생 중에 필터를 바꿔도 현재 영상이 목록에 남아 있으면 계속 재생됩니다.</p>
+</section>
+
+<section id="play">
+  <h2>재생·배속</h2>
+  <ul>
+    <li><b>|◀ ▶ ▶|</b>: 이전 영상 · 재생/일시정지 · 다음 영상. <kbd>Space</kbd> 재생/정지, <kbd>←</kbd>/<kbd>→</kbd> 5초 이동.</li>
+    <li><b>1×~16×</b>: 기본 배속. <b>가변</b>: 움직임이 없는 구간은 빠르게, 움직임 구간은 고른 배속으로.</li>
+    <li>여러 채널을 동시에 고배속으로 재생하면 PC가 감당하지 못해 메모리가 크게 늘 수 있어,
+      <b>채널 수 × 배속</b>에 상한을 둡니다(기본 24: 6채널 4×, 3채널 8×, 1채널 16×). 영상의 처음·끝 20% 구간은 최대 8×입니다.
+      실제 배속은 버튼 오른쪽에 표시됩니다.</li>
+    <li>한 채널을 크게 보다가 시간을 옮긴 뒤 돌아와도 모든 채널이 그 시각에 맞춰집니다.</li>
+  </ul>
+</section>
+
+<section id="skip">
+  <h2>움직임 찾기 (스킵·자동 스킵)</h2>
+  <p>주차·정차 중 녹화된 영상에서 사람·자동차·오토바이·자전거가 <b>실제로 움직인</b> 구간을 찾아 줍니다.
+     서 있는 차나 가끔만 잡히는 물체는 제외합니다.</p>
+  <ul>
+    <li>카메라 제목: <span class="dot" style="background:var(--green)"></span>변화 없음
+      <span class="dot" style="background:var(--amber)"></span>변화 미미함
+      <span class="dot" style="background:var(--red)"></span>변화 많음, 뒤에 움직인 대상 아이콘(🚶🚗🏍🚲).</li>
+    <li>스토리보드 아래와 재생바의 <b>주황색 막대</b>: 움직임이 있던 구간.</li>
+    <li><b>⏭ 스킵</b>: 다음 움직임의 1초 전으로 이동. 영상에 더 없으면 움직임이 있는 다음 영상으로.</li>
+    <li><b>⏩ 자동 스킵</b>: 켜 두면 재생 중 조용한 구간을 자동으로 건너뜁니다.</li>
+  </ul>
+  <div class="note warn">주행 영상은 카메라가 움직여 물체의 움직임을 구분할 수 없으므로 분석하지 않습니다(<i>주행영상/분석대상아님</i>).
+    인식되지 않았다고 해서 아무 일도 없었다는 보장은 아니므로 중요한 장면은 1×로 확인하세요.</div>
+</section>
+
+<section id="analysis">
+  <h2>분석</h2>
+  <p>객체 인식, 스토리보드, 썸네일, SEI(주행 정보) 추출은 백그라운드에서 여러 프로세스로 처리하며, 보고 있는 영상이 먼저입니다.
+     결과는 각 영상 폴더의 <code>.myteslaviewer_cache</code>에 저장되어 다음 실행 때 다시 쓰입니다.</p>
+  <p>설정에서 분석 항목과 범위(모든 영상 / 보고 있는 영상만)를 고를 수 있고, 모두 끄면 재생만 합니다.
+     재생 중에는 분석 프로세스 수를 줄여 재생을 방해하지 않습니다.</p>
+</section>
+
+<section id="map">
+  <h2>지도·주행 정보</h2>
+  <ul>
+    <li>현재 영상 경로는 빨간 선, 다른 영상 경로는 파란 선, 현재 위치는 진행 방향을 가리키는 주황 화살표입니다.</li>
+    <li>경로를 누르면 그 장면의 해당 시점부터 재생합니다.</li>
+    <li>주차 중 녹화처럼 위치 정보가 없는 영상은 지도를 처음 화면으로 되돌리고 안내를 표시합니다.</li>
+    <li>지도 데이터 © OpenStreetMap contributors. 지도 표시에는 인터넷 연결이 필요합니다.</li>
+  </ul>
+</section>
+
+<section id="decrypt">
+  <h2>암호화 영상 복호화</h2>
+  <ol>
+    <li>암호화 영상이 있는 폴더를 열면 <b>🔓 복호화</b> 버튼이 나타납니다.</li>
+    <li>복호화 창에서 <b>Chrome 디버깅 브라우저 열기</b> → 열린 Chrome에서 dashcam.tesla.com에 직접 로그인 → 암호화 영상 1개를 올리면 인증 토큰을 자동으로 감지합니다.
+      (개발자 도구에서 <code>Authorization: Bearer …</code> 값을 직접 붙여 넣어도 됩니다.)</li>
+    <li>Tesla에서 파일별 키만 받아 이 PC에서 복호화합니다. 영상 자체는 업로드하지 않으며, 토큰은 저장하지 않습니다.</li>
+  </ol>
+  <div class="note">event.json은 영상 복호화 키로 복호화되지 않아 대상에서 제외합니다. 차량에서 암호화하지 않은 event.json만 그대로 복사해 사용합니다.
+    본인 계정 차량의 영상만 복호화할 수 있습니다.</div>
+</section>
+
+<section id="settings">
+  <h2>설정</h2>
+  <ul>
+    <li><b>분석</b>: 백그라운드 분석 허용, 항목(객체 인식·스토리보드·SEI·썸네일), 객체 인식 대상.</li>
+    <li><b>재생 성능</b>: 채널 수 × 배속 상한, 분석 프로세스 수(재생 중·고배속·정지 시).
+      기본값은 개발 테스트 PC 기준이므로, 외장 그래픽카드가 있는 PC는 상한을 조금씩 올려 보며 상태 표시줄의 메모리를 확인하세요.</li>
+    <li><b>ⓘ 정보</b>(설정 버튼 옆): 버전, 버전 기록, 오픈소스 고지와 라이선스 전문.</li>
+  </ul>
+</section>
+
+<section id="files">
+  <h2>파일 위치·삭제</h2>
+  <ul>
+    <li>설정·시청 기록·움직임 분석 목록·오류 기록: <code>%LOCALAPPDATA%\MyTeslaViewer</code></li>
+    <li>영상별 분석 결과(썸네일·스토리보드·객체 인식·SEI): 각 영상 폴더의 <code>.myteslaviewer_cache</code></li>
+    <li>설정 창의 <b>모든 설정·기록 삭제</b>로 위 폴더를 지우고 프로그램을 끝낼 수 있습니다(열려 있는 폴더의 분석 결과도 함께 지울지 선택).
+      프로그램을 더 쓰지 않을 때 이것을 실행한 뒤 프로그램 파일을 지우면 흔적이 남지 않습니다.</li>
+  </ul>
+</section>
+
+<section id="trouble">
+  <h2>문제 해결</h2>
+  <ul>
+    <li><b>재생이 끊기거나 느림</b>: 보는 카메라 수를 줄이거나 배속을 낮추세요. 설정에서 재생 중 분석 프로세스 수를 줄여도 됩니다.</li>
+    <li><b>메모리 제한 안내가 나옴</b>: 앱 메모리가 4.5GB에 가까워 분석을 줄이거나 배속을 낮춘 것입니다. 재생은 계속됩니다.</li>
+    <li><b>프로그램이 갑자기 꺼짐</b>: <code>%LOCALAPPDATA%\MyTeslaViewer\crash.log</code>에 원인이 기록됩니다. 문의할 때 함께 보내 주세요.</li>
+    <li><b>복호화 버튼이 없음</b>: 이미 복호화된 폴더이거나 암호화 영상이 없는 폴더입니다.</li>
+  </ul>
+</section>
+
+</main>
+</body>
+</html>

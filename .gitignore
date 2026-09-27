@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+.vendor/
+
+# Build output
+build/
+dist/
+
+# Personal dashcam footage and data - never commit
+TeslaCam/
+TeslaCam_Decrypted/
+TeslaCam_Decrypted_EncryptedBackup/
+아이리버/
+*.mp4
+.myteslaviewer_cache/
+*.part
+*.token
+
+# App state written by older versions into the working folder
+.tesla_*.json
+.tesla_*.log
