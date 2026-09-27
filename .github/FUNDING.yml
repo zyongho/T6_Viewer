@@ -1,4 +1,4 @@
-# 후원 버튼 설정. 값을 채우고 앞의 # 을 지우면 저장소 위에 "Sponsor" 버튼이 나타납니다.
-# github: 은 GitHub Sponsors 가입 승인(https://github.com/sponsors) 후에만 동작합니다.
+# 저장소 위의 "Sponsor" 버튼에 표시되는 후원 링크
+buy_me_a_coffee: zyongho
+# GitHub Sponsors 가입 승인(https://github.com/sponsors) 후 아래 줄의 # 을 지우면 함께 표시됩니다.
 # github: zyongho
-# buy_me_a_coffee: <buymeacoffee.com 사용자 이름>

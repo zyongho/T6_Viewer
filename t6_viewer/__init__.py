@@ -16,4 +16,5 @@ __version__ = "0.1.1"
 # are simply not shown.
 PROJECT_URL = "https://github.com/zyongho/T6_Viewer"  # 소스·문의·업데이트
 AUTHOR = "zyongho"
+DONATE_URL = "https://buymeacoffee.com/zyongho"  # 후원
 APP_LICENSE = "AGPL-3.0-or-later"

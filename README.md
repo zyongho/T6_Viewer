@@ -104,6 +104,12 @@ python -m pip install pytest
 python -m pytest -q
 ```
 
+## 후원
+
+이 프로그램이 도움이 되었다면 커피 한 잔으로 응원해 주세요. 개발을 이어 가는 데 큰 힘이 됩니다.
+
+<a href="https://buymeacoffee.com/zyongho"><img alt="Buy Me a Coffee" src="https://img.shields.io/badge/Buy%20Me%20a%20Coffee-ffdd00?logo=buymeacoffee&logoColor=black"></a>
+
 ## 라이선스
 
 Copyright © 2026 zyongho

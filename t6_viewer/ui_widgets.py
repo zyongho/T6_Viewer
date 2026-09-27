@@ -479,7 +479,7 @@ class AboutDialog(QDialog):
 
     def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
-        from . import APP_LICENSE, AUTHOR, PROJECT_URL, __version__
+        from . import APP_LICENSE, AUTHOR, DONATE_URL, PROJECT_URL, __version__
         from .app_paths import resource
 
         self.setWindowTitle("프로그램 정보")
@@ -502,6 +502,8 @@ class AboutDialog(QDialog):
             details.append(f"라이선스: {APP_LICENSE}")
         if PROJECT_URL:
             details.append(f"<a style='color:#59b5ff' href='{PROJECT_URL}'>{PROJECT_URL}</a> (소스·문의·업데이트)")
+        if DONATE_URL:
+            details.append(f"☕ 도움이 되었다면 <a style='color:#59b5ff' href='{DONATE_URL}'>커피 한 잔 후원하기</a>")
         title = QLabel(
             f"<b style='font-size:16px'>T6 Viewer</b> &nbsp; Ver {__version__}<br>"
             "Tesla dashcam smart viewer — 6채널 동시 재생 · 움직임 스킵 · 주행 정보 · 로컬 복호화<br>"
