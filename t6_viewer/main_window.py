@@ -93,9 +93,11 @@ from .watch_progress import add_interval, coverage
 from .memory_budget import (
     MIB,
     PRELOAD_ESTIMATE,
-    TOTAL_BUDGET,
     WORKER_ESTIMATE,
     critical as memory_critical,
+    excess_bytes as memory_excess,
+    recovered as memory_recovered,
+    system_low as memory_system_low,
     headroom as memory_headroom,
     memory_snapshot,
     over_budget,
@@ -2904,7 +2906,8 @@ class MainWindow(QMainWindow):
             self.group_list.scrollToItem(self.group_list.topLevelItem(index))
 
     def _check_memory_budget(self) -> None:
-        """Keep the whole process tree under the 4.5 GiB budget.
+        """Keep the whole process tree under the 4.5 GiB budget, and the PC
+        as a whole (other programs included) away from running out of memory.
 
         Optional memory is released in priority order (analysis processes,
         short-lived decoders, next-clip preload) and, only if playback
@@ -2914,9 +2917,7 @@ class MainWindow(QMainWindow):
         used, available = memory_snapshot()
         if over_budget(used, available) or memory_critical(used, available):
             self._shed_memory(used, available)
-        elif (self._memory_pressured
-              and (used is None or used < TOTAL_BUDGET - 512 * MIB)
-              and (available is None or available > 2048 * MIB)):
+        elif self._memory_pressured and memory_recovered(used, available):
             self._memory_pressured = False
             self._memory_rate_cap = None
             self._memory_status = ""
@@ -2941,12 +2942,13 @@ class MainWindow(QMainWindow):
                        f"critical={critical} rate={self._current_rate():g} workers={self._analysis.worker_count()}")
         self._memory_pressured = True
         message = ""
-        excess = max(0, (used or 0) - (TOTAL_BUDGET - 256 * MIB))
+        excess = memory_excess(used, available)
+        reason = "PC 전체 메모리가 부족해" if memory_system_low(available) else "앱 메모리 한도(4.5GB)에 가까워"
         workers = self._analysis.worker_count()
         if workers:
             count = workers if critical else max(1, -(-excess // WORKER_ESTIMATE))
             self._analysis.shed(count)
-            message = "앱 메모리 한도(4.5GB)에 가까워 분석 프로세스를 줄였습니다."
+            message = f"{reason} 분석 프로세스를 줄였습니다."
             if not critical:
                 self._show_memory_status(message)
                 return
@@ -2956,7 +2958,7 @@ class MainWindow(QMainWindow):
         self._storyboard_cache.clear()
         if self._preload_channels:
             self._clear_preload()
-            message = "앱 메모리 한도(4.5GB)에 가까워 다음 영상 미리 열기를 해제했습니다."
+            message = f"{reason} 다음 영상 미리 열기를 해제했습니다."
             if not critical:
                 self._show_memory_status(message)
                 return
@@ -2965,7 +2967,7 @@ class MainWindow(QMainWindow):
             if rate > 1.0:
                 self._memory_rate_cap = max(1.0, min(rate / 2, 4.0 if critical else 8.0))
                 self.update_playback_speed()
-                message = f"앱 메모리 한도(4.5GB)를 넘지 않도록 재생 속도를 {self._memory_rate_cap:g}×로 제한했습니다."
+                message = f"{reason} 재생 속도를 {self._memory_rate_cap:g}×로 제한했습니다."
         if message:
             self._show_memory_status(message)
 

@@ -5,6 +5,12 @@ started (analysis workers).
 It is a soft ceiling enforced by admission and shedding, not an OS limit.
 Priority when memory is short: current playback > next-clip preload >
 background analysis.
+
+Besides the app's own ceiling, the whole PC is watched: "available" is the
+smaller of free physical RAM and free commit (RAM + page file), and the
+thresholds scale with the PC's RAM. New optional work starts only while the
+PC stays under ~80% use; around 90% analysis processes are stopped, and
+around 95% preloading is dropped and the playback rate capped.
 """
 
 from __future__ import annotations
@@ -29,8 +35,13 @@ PRELOAD_RESERVE = 384 * MIB
 # One analysis process (~70 MiB with a single BLAS thread and YOLOX loaded)
 # plus its keyframe-only ffmpeg decoder (~60-95 MiB).
 WORKER_ESTIMATE = 192 * MIB
-LOW_SYSTEM_MEMORY = 1536 * MIB
-CRITICAL_SYSTEM_MEMORY = 512 * MIB
+# Minimum free memory for the whole PC, as (fraction of physical RAM, floor).
+LOW_SYSTEM_MEMORY = 1536 * MIB        # admit new work only above this ...
+LOW_SYSTEM_FRACTION = 0.20            # ... and above 20% of RAM (PC use under 80%)
+SHED_SYSTEM_MEMORY = 768 * MIB        # stop analysis processes below this ...
+SHED_SYSTEM_FRACTION = 0.10           # ... or below 10% of RAM (PC use over 90%)
+CRITICAL_SYSTEM_MEMORY = 512 * MIB    # drop preload, cap the rate below this ...
+CRITICAL_SYSTEM_FRACTION = 0.05       # ... or below 5% of RAM (PC use over 95%)
 
 
 class _ProcessMemoryCounters(ctypes.Structure):
@@ -81,6 +92,40 @@ _SNAPSHOT_REUSE = 0.15
 _cache_lock = threading.Lock()
 _tree_cache: tuple[float, list[int]] = (0.0, [])
 _snapshot_cache: tuple[float, tuple[int | None, int | None]] = (0.0, (None, None))
+_total_physical: int | None = None  # the PC's RAM, read once
+
+
+def physical_total() -> int:
+    """Installed physical RAM in bytes (0 when unknown)."""
+    global _total_physical
+    if _total_physical is None:
+        _total_physical = 0
+        if os.name == "nt":
+            try:
+                kernel, _psapi = _windows_api()
+                status = _MemoryStatus()
+                status.dwLength = ctypes.sizeof(status)
+                if kernel.GlobalMemoryStatusEx(ctypes.byref(status)):
+                    _total_physical = int(status.ullTotalPhys)
+            except (AttributeError, OSError, ValueError):
+                pass
+    return _total_physical
+
+
+def _system_floor(fraction: float, floor: int) -> int:
+    return max(floor, int(physical_total() * fraction))
+
+
+def low_system_memory() -> int:
+    return _system_floor(LOW_SYSTEM_FRACTION, LOW_SYSTEM_MEMORY)
+
+
+def shed_system_memory() -> int:
+    return _system_floor(SHED_SYSTEM_FRACTION, SHED_SYSTEM_MEMORY)
+
+
+def critical_system_memory() -> int:
+    return _system_floor(CRITICAL_SYSTEM_FRACTION, CRITICAL_SYSTEM_MEMORY)
 
 
 def _windows_api():
@@ -139,7 +184,8 @@ def _descendant_pids(kernel, root: int) -> list[int]:
 
 def memory_snapshot(max_age: float | None = None) -> tuple[int | None, int | None]:
     """Return private bytes of this process *and all its descendants*, and
-    the machine's available physical RAM.
+    the memory still available to the whole PC (the smaller of free physical
+    RAM and free commit, so a nearly full page file counts too).
 
     With ``start_sampler()`` running the latest background reading is
     returned without measuring on the calling thread. Otherwise, or with an
@@ -212,7 +258,9 @@ def _measure() -> tuple[int | None, int | None]:
                     kernel.CloseHandle(handle)
         status = _MemoryStatus()
         status.dwLength = ctypes.sizeof(status)
-        available = int(status.ullAvailPhys) if kernel.GlobalMemoryStatusEx(ctypes.byref(status)) else None
+        available = None
+        if kernel.GlobalMemoryStatusEx(ctypes.byref(status)):
+            available = int(min(status.ullAvailPhys, status.ullAvailPageFile))
         return total, available
     except (AttributeError, OSError, ValueError):
         return None, None
@@ -232,7 +280,7 @@ def headroom(used: int | None, available: int | None, reserve: int = 0) -> int:
     """Bytes that may still be allocated by optional work."""
     room = GROWTH_CEILING - reserve - (used or 0)
     if available is not None:
-        room = min(room, available - LOW_SYSTEM_MEMORY)
+        room = min(room, available - low_system_memory())
     return max(0, int(room))
 
 
@@ -241,7 +289,7 @@ def preload_slots(process_bytes: int | None, available_bytes: int | None, wanted
     """Admit only decoders with room for their buffers and a safety margin."""
     if wanted <= 0:
         return 0
-    if available_bytes is not None and available_bytes <= LOW_SYSTEM_MEMORY:
+    if available_bytes is not None and available_bytes <= low_system_memory():
         return 0
     return max(0, min(wanted, headroom(process_bytes, available_bytes, reserve) // PRELOAD_ESTIMATE))
 
@@ -259,12 +307,29 @@ def worker_slots(used: int | None, available: int | None, running: int, maximum:
     return max(0, min(maximum, running + grow))
 
 
+def system_low(available: int | None) -> bool:
+    """The PC as a whole (not only this app) is running out of memory."""
+    return available is not None and available <= shed_system_memory()
+
+
 def over_budget(used: int | None, available: int | None) -> bool:
-    return bool((used is not None and used >= TOTAL_BUDGET - SHED_MARGIN)
-                or (available is not None and available <= LOW_SYSTEM_MEMORY // 2))
+    return bool((used is not None and used >= TOTAL_BUDGET - SHED_MARGIN) or system_low(available))
 
 
 def critical(used: int | None, available: int | None) -> bool:
     return bool((used is not None and used >= TOTAL_BUDGET + 256 * MIB)
-                or (available is not None and available < CRITICAL_SYSTEM_MEMORY))
+                or (available is not None and available < critical_system_memory()))
+
+
+def excess_bytes(used: int | None, available: int | None) -> int:
+    """Memory to give back: over the app ceiling, or under the PC's free floor."""
+    app = (used or 0) - (TOTAL_BUDGET - 256 * MIB)
+    system = shed_system_memory() - available if available is not None else 0
+    return max(0, app, system)
+
+
+def recovered(used: int | None, available: int | None) -> bool:
+    """Well clear of both limits again (hysteresis before resuming work)."""
+    return bool((used is None or used < TOTAL_BUDGET - 512 * MIB)
+                and (available is None or available > max(2048 * MIB, low_system_memory() + 512 * MIB)))
 

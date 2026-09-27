@@ -19,8 +19,8 @@ English issues and pull requests are welcome too.
 ## 개발 환경
 
 ```powershell
-git clone https://github.com/zyongho/T6_Viwer.git
-cd T6_Viwer
+git clone https://github.com/zyongho/T6_Viewer.git
+cd T6_Viewer
 py -3.11 -m venv .venv
 .venv\Scripts\Activate.ps1
 python -m pip install -r requirements.txt pytest

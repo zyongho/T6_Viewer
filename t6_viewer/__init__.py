@@ -14,6 +14,6 @@ __version__ = "0.1.1"
 
 # Shown in the 정보 (About) window. Fill in before publishing; empty values
 # are simply not shown.
-PROJECT_URL = "https://github.com/zyongho/T6_Viwer"  # 소스·문의·업데이트
+PROJECT_URL = "https://github.com/zyongho/T6_Viewer"  # 소스·문의·업데이트
 AUTHOR = "zyongho"
 APP_LICENSE = "AGPL-3.0-or-later"

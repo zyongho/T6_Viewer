@@ -50,6 +50,22 @@ QPushButton:hover { background: #354456; }
 """
 
 
+def pc_memory_note() -> str:
+    """How analysis follows the whole PC's memory use, with this PC's numbers."""
+    from .memory_budget import (
+        critical_system_memory, low_system_memory, memory_snapshot, physical_total, shed_system_memory,
+    )
+    gib = 1024 ** 3
+    total = physical_total()
+    _used, available = memory_snapshot(max_age=1.0)
+    now = f"이 PC 메모리 {total / gib:.0f}GB 중 지금 여유 {available / gib:.1f}GB. " if total and available else ""
+    return (now + "다른 프로그램까지 포함한 PC 전체 사용량도 계속 확인합니다. 여유 메모리가 "
+            f"{low_system_memory() / gib:.1f}GB(RAM의 20%)보다 적으면 새 분석 프로세스를 띄우지 않고, "
+            f"{shed_system_memory() / gib:.1f}GB보다 적으면 분석 프로세스를 줄이며, "
+            f"{critical_system_memory() / gib:.1f}GB보다 적으면 미리 열기를 해제하고 재생 속도를 낮춥니다. "
+            "재생 자체는 멈추지 않습니다.")
+
+
 class SettingsDialog(QDialog):
     """Decode-load ceiling and analysis process counts, with guidance."""
 
@@ -141,7 +157,8 @@ class SettingsDialog(QDialog):
             "프로세스를 늘릴수록 분석이 빨라지다가 코어 수 근처에서 더 빨라지지 않습니다"
             f"(참고: {REFERENCE_PC}, 16스레드에서 1개 대비 12개일 때 약 4배, 그 이상은 동일).\n"
             "프로세스 하나당 메모리 약 190MB를 씁니다. 분석은 낮은 우선순위로 동작해 재생을 방해하지 않고, "
-            "앱 메모리 한도(4.5GB)에 가까우면 이 설정보다 적게 실행됩니다."
+            "앱 메모리 한도(4.5GB)에 가까우면 이 설정보다 적게 실행됩니다.\n"
+            + pc_memory_note()
         )
         worker_help.setWordWrap(True)
         worker_help.setStyleSheet("color: #aebdca;")

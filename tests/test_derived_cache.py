@@ -76,6 +76,27 @@ def test_analysis_workers_fill_only_the_remaining_budget():
     assert worker_slots(1024 * MIB, plenty, 0, 12, reserve=3 * 1024 * MIB) == 1
 
 
+def test_whole_pc_memory_limits_scale_with_ram(monkeypatch):
+    from t6_viewer import memory_budget
+    from t6_viewer.memory_budget import excess_bytes, recovered, system_low
+    gib = 1024 * MIB
+    monkeypatch.setattr(memory_budget, "_total_physical", 16 * gib)
+    plenty = 12 * gib
+    # New work only while the PC keeps 20% (3.2 GiB) free, even with app room left.
+    assert worker_slots(1024 * MIB, plenty, 0, 12) == 12
+    assert worker_slots(1024 * MIB, int(3.2 * gib) + 2 * WORKER_ESTIMATE, 0, 12) == 2
+    assert worker_slots(1024 * MIB, 3 * gib, 0, 12) == 0
+    # Other programs pushing the PC past 90% use shed analysis; past 95% is critical.
+    assert not over_budget(1024 * MIB, 2 * gib)
+    assert system_low(int(1.5 * gib)) and over_budget(1024 * MIB, int(1.5 * gib))
+    assert excess_bytes(1024 * MIB, int(1.5 * gib)) == int(16 * gib * 0.10) - int(1.5 * gib)
+    assert critical(1024 * MIB, 700 * MIB) and not critical(1024 * MIB, gib)
+    assert not recovered(1024 * MIB, 3 * gib) and recovered(1024 * MIB, 4 * gib)
+    # A small PC keeps the fixed floors.
+    monkeypatch.setattr(memory_budget, "_total_physical", 4 * gib)
+    assert memory_budget.low_system_memory() == 1536 * MIB
+
+
 def test_memory_snapshot_counts_child_processes():
     import os
     import subprocess
