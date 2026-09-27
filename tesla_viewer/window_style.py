@@ -10,7 +10,7 @@ import ctypes
 import os
 
 from PySide6.QtCore import QEvent, QObject, Qt
-from PySide6.QtGui import QIcon
+from PySide6.QtGui import QFont, QFontDatabase, QIcon
 from PySide6.QtWidgets import QApplication, QWidget
 
 from .app_paths import resource
@@ -60,6 +60,22 @@ class _TitleBarStyler(QObject):
         return False
 
 
+UI_FONT = "Pretendard"
+UI_FONT_SIZE = 10  # points
+
+
+def install_font(app: QApplication) -> None:
+    """Pretendard (SIL OFL) for the whole UI: clean, calm and very legible
+    for Korean and Latin text. Emoji fall back to the system emoji font."""
+    loaded = False
+    for path in sorted(resource("tesla_viewer", "assets", "fonts").glob("Pretendard-*.otf")):
+        loaded |= QFontDatabase.addApplicationFont(str(path)) >= 0
+    if loaded:
+        font = QFont(UI_FONT, UI_FONT_SIZE)
+        font.setHintingPreference(QFont.PreferNoHinting)
+        app.setFont(font)
+
+
 def install(app: QApplication) -> None:
     if os.name == "nt":
         try:
@@ -68,6 +84,7 @@ def install(app: QApplication) -> None:
         except (AttributeError, OSError):
             pass
     app.setWindowIcon(QIcon(str(ICON_PATH)))
+    install_font(app)
     styler = _TitleBarStyler(app)
     app.installEventFilter(styler)
     app._title_bar_styler = styler  # keep alive

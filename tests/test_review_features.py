@@ -287,7 +287,7 @@ def test_about_dialog_lists_notices_and_license_texts(monkeypatch, tmp_path):
     dialog = AboutDialog(window)
     names = list(dialog.documents)
     assert names[:2] == ["버전 기록", "오픈소스 고지"]
-    assert "Ver 0.1" in dialog.text.toPlainText()
+    assert "Ver 0.1.0" in dialog.text.toPlainText()
     dialog.choice.setCurrentText("오픈소스 고지")
     assert any("LGPL-3.0" in name for name in names) and any("GPL-3.0" in name for name in names)
     assert "PySide6" in dialog.text.toPlainText() and "Tesla, Inc." in dialog.text.toPlainText()
@@ -302,7 +302,7 @@ def test_clear_app_data_removes_the_data_folder_and_caches_then_closes(monkeypat
     from tesla_viewer.app_paths import data_dir
     window = _window(monkeypatch, tmp_path)
     folder = data_dir()
-    (folder / "ChromeProfile").mkdir(exist_ok=True)
+    (folder / "sub").mkdir(exist_ok=True)
     (folder / "settings.json").write_text("{}", encoding="utf-8")
     group = _group(tmp_path, "2026-09-26 08:00:00", "SentryClips")
     cache = group.clips["front"].path.parent / ".myteslaviewer_cache"
@@ -310,7 +310,9 @@ def test_clear_app_data_removes_the_data_folder_and_caches_then_closes(monkeypat
     window.current_root = tmp_path
     def confirm(box):
         box.checkBox().setChecked(True)
-        return QMessageBox.Yes
+        delete = next(button for button in box.buttons() if button.text() == "삭제하고 종료")
+        monkeypatch.setattr(box, "clickedButton", lambda: delete)
+        return 0
     monkeypatch.setattr(QMessageBox, "exec", confirm)
     shown = []
     monkeypatch.setattr(module.QMessageBox, "information", lambda *args: shown.append(args[2]))
@@ -325,7 +327,7 @@ def test_clear_app_data_removes_the_data_folder_and_caches_then_closes(monkeypat
 def test_version_and_legacy_files_move_into_the_data_folder(monkeypatch, tmp_path):
     import tesla_viewer
     from tesla_viewer.app_paths import data_file
-    assert tesla_viewer.__version__ == "0.1"
+    assert tesla_viewer.__version__ == "0.1.0"
     (tmp_path / ".tesla_viewer_settings.json").write_text('{"auto_jump": true}', encoding="utf-8")
     target = data_file("settings.json", ".tesla_viewer_settings.json")
     assert target.read_text(encoding="utf-8") == '{"auto_jump": true}'

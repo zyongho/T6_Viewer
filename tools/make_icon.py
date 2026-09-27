@@ -22,30 +22,31 @@ SIZE = 512
 CENTER = SIZE / 2
 LENS_R = 196          # outer barrel
 GLASS_R = 146         # visible glass
-EMBLEM_SCALE = 2.35 * GLASS_R / 176
+EMBLEM_SCALE = 1.55 * GLASS_R / 146
 OUT = Path(__file__).resolve().parent.parent / "tesla_viewer" / "assets"
 
 
 def emblem_path(scale: float, dx: float, dy: float) -> QPainterPath:
-    """A Tesla-style "T": curved top bar over a shield-shaped head and stem."""
+    """A slim Tesla-style "T": a thin curved bar over long, thin arms that
+    run out sideways, and a narrow stem tapering to a point."""
     def p(x, y):
         return QPointF(dx + x * scale, dy + y * scale)
     path = QPainterPath()
-    # top bar
-    path.moveTo(p(-100, -58))
-    path.quadTo(p(0, -104), p(100, -58))
-    path.lineTo(p(94, -44))
-    path.quadTo(p(0, -82), p(-94, -44))
+    # thin top bar
+    path.moveTo(p(-112, -74))
+    path.quadTo(p(0, -108), p(112, -74))
+    path.lineTo(p(108, -64))
+    path.quadTo(p(0, -95), p(-108, -64))
     path.closeSubpath()
-    # head and stem
-    path.moveTo(p(-86, -34))
-    path.quadTo(p(0, -66), p(86, -34))
-    path.lineTo(p(76, -16))
-    path.quadTo(p(34, -26), p(16, -22))
-    path.lineTo(p(6, 104))
-    path.quadTo(p(0, 114), p(-6, 104))
-    path.lineTo(p(-16, -22))
-    path.quadTo(p(-34, -26), p(-76, -16))
+    # arms and stem
+    path.moveTo(p(-106, -54))
+    path.quadTo(p(0, -86), p(106, -54))
+    path.lineTo(p(100, -40))
+    path.quadTo(p(40, -56), p(8, -48))
+    path.lineTo(p(3, 112))
+    path.quadTo(p(0, 118), p(-3, 112))
+    path.lineTo(p(-8, -48))
+    path.quadTo(p(-40, -56), p(-100, -40))
     path.closeSubpath()
     return path
 
@@ -57,8 +58,8 @@ def sticker_layer() -> np.ndarray:
     painter = QPainter(image)
     painter.setRenderHint(QPainter.Antialiasing)
     # Big and a little off-centre, so part of it runs off the glass.
-    path = emblem_path(EMBLEM_SCALE, CENTER - 18 * GLASS_R / 176, CENTER + 36 * GLASS_R / 176)
-    painter.setPen(QPen(QColor("#ffffff"), 16, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
+    path = emblem_path(EMBLEM_SCALE, CENTER, CENTER + 22)
+    painter.setPen(QPen(QColor("#ffffff"), 9, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
     painter.setBrush(QColor("#ffffff"))
     painter.drawPath(path)                       # white sticker margin
     painter.setPen(Qt.NoPen)
@@ -69,7 +70,7 @@ def sticker_layer() -> np.ndarray:
     return np.frombuffer(buffer, np.uint8).reshape(SIZE, SIZE, 4).copy()
 
 
-def fisheye(layer: np.ndarray, strength: float = 2.1) -> np.ndarray:
+def fisheye(layer: np.ndarray, strength: float = 1.6) -> np.ndarray:
     """Barrel distortion inside the glass: centre magnified, rim squeezed."""
     ys, xs = np.mgrid[0:SIZE, 0:SIZE].astype(np.float32)
     dx, dy = (xs - CENTER) / GLASS_R, (ys - CENTER) / GLASS_R
@@ -99,14 +100,14 @@ def compose() -> QImage:
     center = QPointF(CENTER, CENTER)
     # camera body: a square plate filling the whole icon
     body = QLinearGradient(0, 0, 0, SIZE)
-    body.setColorAt(0.0, QColor("#4a5666"))
-    body.setColorAt(0.5, QColor("#2a3441"))
-    body.setColorAt(1.0, QColor("#151a21"))
-    painter.setPen(QPen(QColor("#9aa8b8"), 6))
+    body.setColorAt(0.0, QColor("#c9d2dc"))
+    body.setColorAt(0.5, QColor("#9aa6b4"))
+    body.setColorAt(1.0, QColor("#6d7888"))
+    painter.setPen(QPen(QColor("#e8edf2"), 6))
     painter.setBrush(QBrush(body))
     painter.drawRoundedRect(QRectF(6, 6, SIZE - 12, SIZE - 12), 92, 92)
     # a thin highlight along the top edge and a viewfinder window
-    painter.setPen(QPen(QColor(255, 255, 255, 45), 4))
+    painter.setPen(QPen(QColor(255, 255, 255, 110), 4))
     painter.setBrush(Qt.NoBrush)
     painter.drawRoundedRect(QRectF(22, 22, SIZE - 44, SIZE - 44), 78, 78)
     painter.setPen(Qt.NoPen)

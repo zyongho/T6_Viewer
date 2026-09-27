@@ -31,8 +31,8 @@ MyTeslaViewer는 아래 오픈소스 소프트웨어와 데이터를 사용합�
 ## NumPy — BSD 3-Clause (OpenBLAS 포함, BSD 3-Clause)
 - © NumPy 개발자. <https://numpy.org/>
 
-## requests, websocket-client — Apache License 2.0
-- <https://github.com/psf/requests>, <https://github.com/websocket-client/websocket-client>
+## requests — Apache License 2.0
+- <https://github.com/psf/requests>
 - requests가 사용하는 urllib3(MIT), idna(BSD 3-Clause), charset-normalizer(MIT),
   certifi(MPL 2.0, <https://github.com/certifi/python-certifi>)
 
@@ -44,6 +44,10 @@ MyTeslaViewer는 아래 오픈소스 소프트웨어와 데이터를 사용합�
 
 ## Leaflet — BSD 2-Clause
 - © Volodymyr Agafonkin, CloudMade. <https://leafletjs.com/>
+
+## Pretendard 글꼴 — SIL Open Font License 1.1
+- © Kil Hyung-jin, Reserved Font Name Pretendard. <https://github.com/orioncactus/pretendard>
+  (라이선스 전문: `Pretendard-OFL-1.1.txt`)
 
 ## 지도 데이터 — © OpenStreetMap contributors (ODbL)
 - <https://www.openstreetmap.org/copyright> 지도 화면에 출처를 표시합니다.

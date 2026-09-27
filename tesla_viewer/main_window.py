@@ -16,7 +16,7 @@ from pathlib import Path
 import av
 
 from PySide6.QtCore import QBuffer, QByteArray, QEvent, QIODevice, QObject, QThread, QTimer, QUrl, Qt, Signal, Slot
-from PySide6.QtGui import QBrush, QColor, QDragEnterEvent, QDropEvent, QIcon, QImage, QKeySequence, QPainter, QPixmap, QShortcut
+from PySide6.QtGui import QBrush, QColor, QDesktopServices, QDragEnterEvent, QDropEvent, QIcon, QImage, QKeySequence, QPainter, QPixmap, QShortcut
 from PySide6.QtMultimedia import QMediaPlayer, QVideoFrame, QVideoSink
 from PySide6.QtMultimediaWidgets import QVideoWidget
 from PySide6.QtWebChannel import QWebChannel
@@ -51,7 +51,6 @@ from PySide6.QtWidgets import (
 )
 
 from .api import fetch_keys
-from .chrome_bridge import BearerWatcher
 from .crypto import (
     CAMERAS,
     CAMERA_LABELS,
@@ -887,35 +886,8 @@ class StoryboardWorker(_ParallelDecodeWorker):
         self._run_all(list(self.jobs), storyboard)
 
 
-class ChromeTokenWorker(QObject):
-    status = Signal(str)
-    found = Signal(str)
-    error = Signal(str)
-    finished = Signal()
-
-    def __init__(self):
-        super().__init__()
-        self.stop_event = threading.Event()
-
-    @Slot()
-    def run(self) -> None:
-        watcher = BearerWatcher(self.stop_event, self.status.emit, self.found.emit)
-        try:
-            watcher.run()
-        except Exception as exc:
-            if not self.stop_event.is_set():
-                self.error.emit(str(exc))
-        finally:
-            self.finished.emit()
-
-    def stop(self) -> None:
-        self.stop_event.set()
-
-
 class TokenDialog(QDialog):
-    chrome_requested = Signal()
     start_requested = Signal()
-    token_detected = Signal()
 
     def __init__(self, default_output: Path, parent: QWidget | None = None):
         super().__init__(parent)
@@ -946,15 +918,15 @@ class TokenDialog(QDialog):
         choose = QPushButton("찾기")
         choose.clicked.connect(self.choose_output)
         self.choose_button = choose
-        chrome_button = QPushButton("Chrome에서 자동 감지")
-        chrome_button.clicked.connect(self.chrome_requested.emit)
-        chrome_button.setText("1. Chrome debugging browser 열기")
+        guide_button = QPushButton("🌐 dashcam.tesla.com 열기")
+        guide_button.clicked.connect(
+            lambda: QDesktopServices.openUrl(QUrl("https://dashcam.tesla.com")))
         output_row = QHBoxLayout()
         output_row.addWidget(self.output, 1)
         output_row.addWidget(choose)
         note = QLabel(
-            "토큰은 저장하지 않습니다. Tesla 키 요청에만 사용되며 영상 파일은 PC에서만 복호화됩니다.\n"
-            "자동 감지는 별도 Chrome 디버깅 창을 열고, 사용자가 직접 로그인한 뒤 암호화 영상을 선택할 때만 동작합니다."
+            "토큰은 저장하지 않으며 Tesla에 파일별 복호화 키를 요청할 때만 사용합니다. "
+            "영상 파일은 업로드하지 않고 이 PC에서만 복호화합니다."
         )
         note.setWordWrap(True)
         form = QFormLayout()
@@ -963,14 +935,18 @@ class TokenDialog(QDialog):
         layout = QVBoxLayout(self)
         layout.addWidget(note)
         instructions = QLabel(
-            "복호화 순서: ① Chrome 디버깅 브라우저 열기 → ② Tesla 로그인/인증 → "
-            "③ 암호화 영상 1개 업로드 및 Batch 실행 → ④ Bearer 자동 감지 → ⑤ PC에서 복호화\n"
-            "사용자가 직접 해야 하는 작업은 로그인/인증과 영상 업로드입니다. 나머지는 자동으로 진행됩니다."
+            "Bearer 토큰 얻는 법 (Chrome·Edge)\n"
+            "① 아래 버튼으로 dashcam.tesla.com을 열고 Tesla 계정으로 로그인합니다.\n"
+            "② F12로 개발자 도구를 열고 '네트워크(Network)' 탭을 선택합니다.\n"
+            "③ 사이트에서 암호화된 영상 1개를 열어 복호화가 진행되게 합니다.\n"
+            "④ 목록에서 'decrypt' 요청을 누르고, 요청 헤더(Request Headers)의 "
+            "'Authorization: Bearer …'에서 'Bearer ' 뒤의 값을 복사해 아래 칸에 붙여 넣습니다.\n"
+            "토큰은 로그인 계정의 권한이므로 다른 사람에게 알려 주지 마세요. 일정 시간이 지나면 만료됩니다."
         )
         instructions.setWordWrap(True)
         layout.addWidget(instructions)
         layout.addLayout(form)
-        layout.addWidget(chrome_button)
+        layout.addWidget(guide_button)
         self.status_label = QLabel()
         self.status_label.setWordWrap(True)
         self.status_label.setMaximumHeight(48)
@@ -1043,8 +1019,6 @@ class TokenDialog(QDialog):
     def set_token(self, token: str) -> None:
         self.token.setText(token)
         self.token.setCursorPosition(0)
-        self.set_status("Bearer 인증을 감지했습니다. 복호화를 준비합니다.")
-        self.token_detected.emit()
 
 
 class MainWindow(QMainWindow):
@@ -1065,8 +1039,6 @@ class MainWindow(QMainWindow):
         self._thread: QThread | None = None
         self._worker: DecryptWorker | None = None
         self._last_output: Path | None = None
-        self._chrome_thread: QThread | None = None
-        self._chrome_worker: ChromeTokenWorker | None = None
         self._decrypt_dialog: TokenDialog | None = None
         self._decryption_started = False
         # Per-clip post-processing (object motion, GPS/vehicle state) runs in
@@ -1450,6 +1422,8 @@ class MainWindow(QMainWindow):
         self.setStyleSheet(
             """
             QMainWindow { background: #101318; }
+            QDialog, QMessageBox { background: #151a21; }
+            QMessageBox QLabel { color: #edf2f7; }
             QToolBar { background: #1c222b; border: 0; spacing: 6px; padding: 5px; }
             QToolButton, QPushButton { color: #edf2f7; background: #2a3441; border: 1px solid #435164; padding: 6px 10px; border-radius: 4px; }
             QToolButton:hover, QPushButton:hover { background: #354456; }
@@ -2541,14 +2515,17 @@ class MainWindow(QMainWindow):
     def clear_app_data(self) -> None:
         """Delete everything this app stored, then quit (for uninstalling)."""
         box = QMessageBox(QMessageBox.Warning, "모든 설정·기록 삭제",
-                          "설정, 시청 기록, 움직임 분석 목록, 오류 기록, Chrome 자동 감지 프로필이 있는\n"
+                          "설정, 시청 기록, 움직임 분석 목록, 오류 기록이 있는\n"
                           f"{data_dir()}\n폴더를 통째로 지우고 프로그램을 종료합니다. 되돌릴 수 없습니다.",
-                          QMessageBox.Yes | QMessageBox.No, self)
-        box.setDefaultButton(QMessageBox.No)
+                          QMessageBox.NoButton, self)
+        delete_button = box.addButton("삭제하고 종료", QMessageBox.DestructiveRole)
+        cancel_button = box.addButton("취소", QMessageBox.RejectRole)
+        box.setDefaultButton(cancel_button)
         caches = QCheckBox("열려 있는 폴더의 영상별 분석 결과(.myteslaviewer_cache)도 삭제")
         caches.setEnabled(self.current_root is not None)
         box.setCheckBox(caches)
-        if box.exec() != QMessageBox.Yes:
+        box.exec()
+        if box.clickedButton() is not delete_button:
             return
         self._data_cleared = True
         for timer in (self.memory_timer, self.watched_timer, self.motion_cache_timer, self.preload_timer):
@@ -2557,7 +2534,6 @@ class MainWindow(QMainWindow):
         for worker in (self._storyboard_worker, self._thumbnail_worker):
             if worker:
                 worker.stop()
-        self.stop_chrome_capture()
         crash_log.close()
         folder = data_dir()
         shutil.rmtree(folder, ignore_errors=True)
@@ -3383,52 +3359,7 @@ class MainWindow(QMainWindow):
             self.statusBar().showMessage(f"{tile.camera}: {message}")
 
     def decrypt_dialog(self) -> None:
-        return self.open_decrypt_dialog()
-
-        # Legacy modal flow kept below for compatibility with older sessions.
-        if not self.current_root:
-            QMessageBox.information(self, "먼저 폴더를 여세요", "TeslaCam 폴더를 먼저 열어 주세요.")
-            return
-        encrypted = [clip for clip in discover_clips(self.current_root) if clip.encrypted]
-        if not encrypted:
-            QMessageBox.information(self, "암호화 영상 없음", "현재 폴더에서 암호화된 .mp4를 찾지 못했습니다.")
-            return
-        default_output = self.current_root.parent / "TeslaCam_Decryped"
-        if not default_output.exists():
-            existing_correct_name = self.current_root.parent / "TeslaCam_Decrypted"
-            if existing_correct_name.exists():
-                default_output = existing_correct_name
-        dialog = TokenDialog(default_output, self)
-        dialog.chrome_requested.connect(lambda: self.start_chrome_capture(dialog))
-        dialog.finished.connect(lambda _result: self.stop_chrome_capture())
-        if dialog.exec() != QDialog.Accepted:
-            return
-        token = dialog.token.text().strip()
-        output = Path(dialog.output.text().strip()).expanduser()
-        if not token or not output:
-            QMessageBox.warning(self, "입력 필요", "Bearer 토큰과 출력 폴더를 입력해 주세요.")
-            return
-        try:
-            resolved_output = output.resolve()
-            resolved_source = self.current_root.resolve()
-            if resolved_output == resolved_source or resolved_output.is_relative_to(resolved_source):
-                QMessageBox.warning(self, "출력 폴더 오류", "원본 TeslaCam 폴더 안쪽에는 출력할 수 없습니다. 별도 폴더를 선택해 주세요.")
-                return
-        except OSError as exc:
-            QMessageBox.warning(self, "출력 폴더 오류", str(exc))
-            return
-        delete_source = dialog.delete_source.isChecked()
-        if delete_source:
-            answer = QMessageBox.warning(
-                self,
-                "원본 암호화 영상 삭제 확인",
-                "복호화에 성공한 원본 암호화 .mp4를 삭제합니다.\n삭제 후 복구할 수 없습니다. 계속하시겠습니까?",
-                QMessageBox.Yes | QMessageBox.No,
-                QMessageBox.No,
-            )
-            if answer != QMessageBox.Yes:
-                return
-        self.start_decryption(token, output, delete_source)
+        self.open_decrypt_dialog()
 
     def open_decrypt_dialog(self) -> None:
         if not self.current_root:
@@ -3452,12 +3383,7 @@ class MainWindow(QMainWindow):
         dialog = TokenDialog(default_output, self)
         self._decrypt_dialog = dialog
         self._decryption_started = False
-        dialog.chrome_requested.connect(lambda: self.start_chrome_capture(dialog))
         dialog.start_requested.connect(lambda: self.begin_decryption_from_dialog(dialog))
-        dialog.token_detected.connect(
-            lambda: QTimer.singleShot(0, lambda: self.begin_decryption_from_dialog(dialog, automatic=True))
-        )
-        dialog.finished.connect(self.stop_chrome_capture)
         dialog.append_log(f"암호화 영상 {len(encrypted)}개를 찾았습니다.")
         dialog.append_log(EVENT_JSON_NOTE)
         if source_root != self.current_root:
@@ -3470,14 +3396,14 @@ class MainWindow(QMainWindow):
         dialog.raise_()
         dialog.activateWindow()
 
-    def begin_decryption_from_dialog(self, dialog: TokenDialog, automatic: bool = False) -> None:
+    def begin_decryption_from_dialog(self, dialog: TokenDialog) -> None:
         if self._decryption_started or (self._thread and self._thread.isRunning()):
             dialog.set_status("이미 복호화를 진행 중입니다.")
             return
         token = dialog.token.text().strip()
         output = Path(dialog.output.text().strip()).expanduser()
         if not token:
-            dialog.set_status("Bearer 토큰을 기다리는 중입니다. Chrome에서 로그인 후 영상 1개를 Batch 처리해 주세요.")
+            dialog.set_status("Bearer 토큰을 붙여 넣어 주세요. 얻는 방법은 창 위쪽 안내를 참고하세요.")
             return
         if not output:
             dialog.set_status("출력 폴더를 지정해 주세요.")
@@ -3509,32 +3435,6 @@ class MainWindow(QMainWindow):
         self._decryption_started = True
         dialog.append_log("복호화를 시작합니다. 암호화 파일은 PC 밖으로 전송하지 않습니다.")
         self.start_decryption(token, output, dialog.delete_source.isChecked(), dialog)
-
-    def start_chrome_capture(self, dialog: TokenDialog) -> None:
-        if self._chrome_thread and self._chrome_thread.isRunning():
-            dialog.set_status("이미 Chrome 감지를 실행 중입니다. 암호화 영상을 선택해 주세요.")
-            return
-        self._chrome_thread = QThread(self)
-        self._chrome_worker = ChromeTokenWorker()
-        self._chrome_worker.moveToThread(self._chrome_thread)
-        self._chrome_thread.started.connect(self._chrome_worker.run)
-        self._chrome_worker.status.connect(dialog.set_status)
-        self._chrome_worker.found.connect(dialog.set_token)
-        self._chrome_worker.error.connect(lambda message: dialog.set_status(f"Chrome 감지 오류: {message}"))
-        self._chrome_worker.finished.connect(self._chrome_thread.quit)
-        self._chrome_worker.finished.connect(self._chrome_worker.deleteLater)
-        self._chrome_thread.finished.connect(self._chrome_thread.deleteLater)
-        self._chrome_thread.finished.connect(self._chrome_capture_finished)
-        self._chrome_thread.start()
-        dialog.set_status("Chrome 연결을 준비 중입니다…")
-
-    def stop_chrome_capture(self) -> None:
-        if self._chrome_worker:
-            self._chrome_worker.stop()
-
-    def _chrome_capture_finished(self) -> None:
-        self._chrome_thread = None
-        self._chrome_worker = None
 
     def start_decryption(
         self,
@@ -3594,9 +3494,7 @@ class MainWindow(QMainWindow):
         if self._storyboard_worker:
             self._storyboard_worker.stop()
         self._analysis.shutdown()
-        self.stop_chrome_capture()
-        threads = (self._thumbnail_thread, self._storyboard_thread,
-                   self._telemetry_thread, self._chrome_thread)
+        threads = (self._thumbnail_thread, self._storyboard_thread, self._telemetry_thread)
         if any(thread and thread.isRunning() for thread in threads):
             self.statusBar().showMessage("백그라운드 작업을 종료하는 중입니다…")
             event.ignore()
