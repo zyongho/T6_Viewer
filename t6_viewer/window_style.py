@@ -15,7 +15,7 @@ from PySide6.QtWidgets import QApplication, QWidget
 
 from .app_paths import resource
 
-ICON_PATH = resource("tesla_viewer", "assets", "app_icon.png")  # made by tools/make_icon.py
+ICON_PATH = resource("t6_viewer", "assets", "app_icon.ico")  # made by tools/make_icon.py
 CAPTION = "#1c222b"   # same as the toolbar
 CAPTION_TEXT = "#edf2f7"
 BORDER = "#2a3441"
@@ -68,7 +68,7 @@ def install_font(app: QApplication) -> None:
     """Pretendard (SIL OFL) for the whole UI: clean, calm and very legible
     for Korean and Latin text. Emoji fall back to the system emoji font."""
     loaded = False
-    for path in sorted(resource("tesla_viewer", "assets", "fonts").glob("Pretendard-*.otf")):
+    for path in sorted(resource("t6_viewer", "assets", "fonts").glob("Pretendard-*.otf")):
         loaded |= QFontDatabase.addApplicationFont(str(path)) >= 0
     if loaded:
         font = QFont(UI_FONT, UI_FONT_SIZE)
@@ -80,7 +80,7 @@ def install(app: QApplication) -> None:
     if os.name == "nt":
         try:
             # Own taskbar entry and icon instead of python.exe's.
-            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("MyTeslaViewer.App")
+            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("T6Viewer.App")
         except (AttributeError, OSError):
             pass
     app.setWindowIcon(QIcon(str(ICON_PATH)))

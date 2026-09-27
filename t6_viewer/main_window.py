@@ -74,13 +74,21 @@ from .telemetry import (
     vehicle_motion_label,
 )
 from . import video_decode
-from . import __version__
+from . import PROJECT_URL, __version__
 from .app_paths import data_dir, data_file
 from .drive_hud import DriveHud, is_driving
 from .tile_map import TileMapWidget, TileProvider, openstreetmap, vworld
 from .analysis_jobs import OBJECTS_CACHE_KIND
 from .analysis_pool import AnalysisPool, Job
-from .derived_cache import load_image, save_image, load_result, load_telemetry
+from .derived_cache import (
+    CACHE_DIR_NAME,
+    LEGACY_CACHE_DIR_NAMES,
+    cache_listing,
+    load_image,
+    load_result,
+    load_telemetry,
+    save_image,
+)
 from .watch_progress import add_interval, coverage
 from .memory_budget import (
     MIB,
@@ -845,7 +853,7 @@ class TokenDialog(QDialog):
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("My Tesla Viewer · 6 Camera")
+        self.setWindowTitle(f"T6 Viewer {__version__} — Tesla dashcam smart viewer")
         self.resize(1800, 980)
         self.setAcceptDrops(True)
         self.current_root: Path | None = None
@@ -1040,13 +1048,15 @@ class MainWindow(QMainWindow):
         self.map_toggle = self._pane_button("지도 숨기기")
         direction_bar.addWidget(self.map_toggle)
         video_panel_layout.addLayout(direction_bar)
-        # Driving-state strip: shown only for clips recorded while moving.
+        # Driving-state strip: shown only for clips recorded while moving,
+        # at the top of the Front camera (see _place_hud).
         self.drive_hud = DriveHud()
         self.drive_hud.hide()
-        video_panel_layout.addWidget(self.drive_hud)
+        self._hud_tile: VideoTile | None = None
+        self._place_hud()
         video_panel_layout.addWidget(self.video_stack, 1)
         self.map_widget = TileMapWidget(self._map_provider(), str(data_dir() / "tile_cache"),
-                                        f"TeslaCamViewer/{__version__}")
+                                        f"T6Viewer/{__version__} (+{PROJECT_URL})")
         self.map_widget.group_clicked.connect(self.map_group_selected)
         self.telemetry_labels: dict[str, QLabel] = {}
         telemetry_panel = self.create_telemetry_panel()
@@ -1452,18 +1462,15 @@ class MainWindow(QMainWindow):
         """Read which clips already have cached results (one listdir per folder)."""
         self._done = {"objects": set(), "storyboard": set(), "sei": set()}
         self._group_by_path = {}
-        listings: dict[Path, set[str]] = {}
+        listings: dict[Path, set[str]] = {}  # clip folder -> cached result files
         suffixes = {"objects": f".{OBJECTS_CACHE_KIND}.json.gz", "storyboard": ".storyboard20.json.gz",
                     "sei": ".sei.json.gz"}
         for group in self.all_groups:
             for clip in group.clips.values():
                 self._group_by_path[str(clip.path)] = group
-                folder = clip.path.parent / ".myteslaviewer_cache"
+                folder = clip.path.parent
                 if folder not in listings:
-                    try:
-                        listings[folder] = set(os.listdir(folder))
-                    except OSError:
-                        listings[folder] = set()
+                    listings[folder] = cache_listing(folder)
                 names = listings[folder]
                 for kind, suffix in suffixes.items():
                     if clip.path.name + suffix in names:
@@ -2348,7 +2355,7 @@ class MainWindow(QMainWindow):
         delete_button = box.addButton("삭제하고 종료", QMessageBox.DestructiveRole)
         cancel_button = box.addButton("취소", QMessageBox.RejectRole)
         box.setDefaultButton(cancel_button)
-        caches = QCheckBox("열려 있는 폴더의 영상별 분석 결과(.myteslaviewer_cache)도 삭제")
+        caches = QCheckBox(f"열려 있는 폴더의 영상별 분석 결과({CACHE_DIR_NAME})도 삭제")
         caches.setEnabled(self.current_root is not None)
         box.setCheckBox(caches)
         box.exec()
@@ -2366,9 +2373,10 @@ class MainWindow(QMainWindow):
         shutil.rmtree(folder, ignore_errors=True)
         removed_caches = 0
         if caches.isChecked() and self.current_root is not None:
-            for cache in self.current_root.rglob(".myteslaviewer_cache"):
-                shutil.rmtree(cache, ignore_errors=True)
-                removed_caches += 1
+            for name in (CACHE_DIR_NAME, *LEGACY_CACHE_DIR_NAMES):
+                for cache in self.current_root.rglob(name):
+                    shutil.rmtree(cache, ignore_errors=True)
+                    removed_caches += 1
         if folder.exists():
             message = ("일부 파일은 사용 중이라 지우지 못했습니다. 프로그램 종료 후 이 폴더를 직접 지워 주세요:\n"
                        f"{folder}")
@@ -2428,6 +2436,11 @@ class MainWindow(QMainWindow):
         return playback_reserve(self._current_rate(), len(self.active_tiles()))
 
     def relayout_tiles(self) -> None:
+        self._relayout_tiles()
+        if hasattr(self, "drive_hud"):
+            self._place_hud()
+
+    def _relayout_tiles(self) -> None:
         selected = [camera for camera in CAMERA_DISPLAY_ORDER if camera in self.selected_cameras]
         segment_count = 20 if self.focus_camera or len(selected) == 1 else 10
         for tile in self.tiles:
@@ -2486,6 +2499,18 @@ class MainWindow(QMainWindow):
             if len(self.selected_cameras) == 2 and self.focus_camera is None:
                 self.layout_timer.start()
         return super().eventFilter(watched, event)
+
+    def _place_hud(self) -> None:
+        """Put the driving HUD at the top of Front, else the first shown camera."""
+        visible = [self.tiles_by_camera[camera] for camera in CAMERA_DISPLAY_ORDER
+                   if camera in ({self.focus_camera} if self.focus_camera else self.selected_cameras)]
+        target = next((tile for tile in visible if tile.camera == "front"), visible[0] if visible else None)
+        if target is None or target is self._hud_tile:
+            return
+        if self._hud_tile is not None:
+            self._hud_tile.layout().removeWidget(self.drive_hud)
+        target.layout().insertWidget(1, self.drive_hud)   # below the camera title
+        self._hud_tile = target
 
     def active_tiles(self) -> list[VideoTile]:
         cameras = {self.focus_camera} if self.focus_camera else self.selected_cameras
@@ -3359,7 +3384,7 @@ class MainWindow(QMainWindow):
 def main() -> None:
     crash_log.install(data_file("crash.log"))
     app = QApplication(sys.argv)
-    app.setApplicationName("MyTeslaViewer")
+    app.setApplicationName("T6 Viewer")
     window_style.install(app)
     window = MainWindow()
     window.show()

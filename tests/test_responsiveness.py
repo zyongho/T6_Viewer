@@ -2,12 +2,12 @@ import numpy as np
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication, QTreeWidgetItem
 
-from tesla_viewer.crypto import ClipGroup, ClipInfo
-from tesla_viewer import analysis_jobs
-from tesla_viewer.analysis_pool import AnalysisPool, Job
-from tesla_viewer.main_window import MainWindow
-from tesla_viewer.motion_scan import adaptive_rate, analyze_motion_frames, classify_motion_frames, analysis_group_order
-from tesla_viewer.telemetry import TelemetrySample, nearest_sample
+from t6_viewer.crypto import ClipGroup, ClipInfo
+from t6_viewer import analysis_jobs
+from t6_viewer.analysis_pool import AnalysisPool, Job
+from t6_viewer.main_window import MainWindow
+from t6_viewer.motion_scan import adaptive_rate, analyze_motion_frames, classify_motion_frames, analysis_group_order
+from t6_viewer.telemetry import TelemetrySample, nearest_sample
 
 
 def test_rapid_list_clicks_load_only_latest(monkeypatch):
@@ -34,7 +34,7 @@ def test_rapid_list_clicks_load_only_latest(monkeypatch):
 
 def test_tile_map_projection_fit_and_route_click(monkeypatch):
     from PySide6.QtCore import QPointF
-    from tesla_viewer.tile_map import HOME, TileMapWidget, openstreetmap, to_latlon, to_world
+    from t6_viewer.tile_map import HOME, TileMapWidget, openstreetmap, to_latlon, to_world
     monkeypatch.setenv("QT_QPA_PLATFORM", "offscreen")
     QApplication.instance() or QApplication([])
     lat, lon = to_latlon(*to_world(37.5, 127.0))

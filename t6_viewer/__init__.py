@@ -1,4 +1,4 @@
-"""TeslaCam decrypt-and-view desktop application."""
+"""T6 Viewer — Tesla dashcam smart viewer."""
 
 import os
 
@@ -14,6 +14,6 @@ __version__ = "0.1.1"
 
 # Shown in the 정보 (About) window. Fill in before publishing; empty values
 # are simply not shown.
-PROJECT_URL = ""   # e.g. "https://github.com/<계정>/MyTeslaViewer" (소스·문의·업데이트)
-AUTHOR = ""        # 이름 또는 닉네임
-APP_LICENSE = ""   # 이 프로그램 코드의 라이선스, e.g. "MIT"
+PROJECT_URL = "https://github.com/zyongho/T6_Viwer"  # 소스·문의·업데이트
+AUTHOR = "zyongho"
+APP_LICENSE = "AGPL-3.0-or-later"

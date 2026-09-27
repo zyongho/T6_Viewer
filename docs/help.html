@@ -3,14 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>MyTeslaViewer 도움말</title>
+<title>T6 Viewer 도움말</title>
 <style>
   @font-face { font-family: "Pretendard"; font-weight: 400;
-    src: local("Pretendard Regular"), url("../tesla_viewer/assets/fonts/Pretendard-Regular.otf"); }
+    src: local("Pretendard Regular"), url("../t6_viewer/assets/fonts/Pretendard-Regular.otf"); }
   @font-face { font-family: "Pretendard"; font-weight: 600;
-    src: local("Pretendard SemiBold"), url("../tesla_viewer/assets/fonts/Pretendard-SemiBold.otf"); }
+    src: local("Pretendard SemiBold"), url("../t6_viewer/assets/fonts/Pretendard-SemiBold.otf"); }
   @font-face { font-family: "Pretendard"; font-weight: 700;
-    src: local("Pretendard Bold"), url("../tesla_viewer/assets/fonts/Pretendard-Bold.otf"); }
+    src: local("Pretendard Bold"), url("../t6_viewer/assets/fonts/Pretendard-Bold.otf"); }
   :root {
     --bg: #101318; --panel: #171c24; --line: #2a3441; --text: #dce4ed; --muted: #9aa8b8;
     --accent: #59b5ff; --red: #e53935; --amber: #ffb547; --green: #48cf76;
@@ -46,8 +46,8 @@
 <body>
 <header>
   <div class="wrap">
-    <h1>MyTeslaViewer 도움말</h1>
-    <p>테슬라 블랙박스(TeslaCam) 영상을 6개 카메라 동시에 보고, 주차 중 움직임을 빠르게 찾는 PC 프로그램입니다. 영상은 이 PC에서만 처리합니다.</p>
+    <h1>T6 Viewer 도움말</h1>
+    <p>Tesla dashcam smart viewer — 테슬라 블랙박스(TeslaCam) 영상을 6개 카메라 동시에 보고, 주차 중 움직임을 빠르게 찾는 PC 프로그램입니다. 영상은 이 PC에서만 처리합니다.</p>
     <nav>
       <a href="#start">시작하기</a><a href="#screen">화면 구성</a><a href="#list">목록·필터</a>
       <a href="#play">재생·배속</a><a href="#skip">움직임 찾기</a><a href="#analysis">분석</a>
@@ -127,7 +127,7 @@
 <section id="analysis">
   <h2>분석</h2>
   <p>객체 인식, 스토리보드, 썸네일, SEI(주행 정보) 추출은 백그라운드에서 여러 프로세스로 처리하며, 보고 있는 영상이 먼저입니다.
-     결과는 각 영상 폴더의 <code>.myteslaviewer_cache</code>에 저장되어 다음 실행 때 다시 쓰입니다.</p>
+     결과는 각 영상 폴더의 <code>.t6_viewer_cache</code>에 저장되어 다음 실행 때 다시 쓰입니다.</p>
   <p>설정에서 분석 항목과 범위(모든 영상 / 보고 있는 영상만)를 고를 수 있고, 모두 끄면 재생만 합니다.
      재생 중에는 분석 프로세스 수를 줄여 재생을 방해하지 않습니다.</p>
 </section>
@@ -135,6 +135,10 @@
 <section id="map">
   <h2>지도·주행 정보</h2>
   <ul>
+    <li><b>주행 정보 표시(HUD)</b>: 주행 중 녹화된 영상이면 Front 영상 위쪽에 속도 게이지, 기어(P R N D),
+      조향각만큼 돌아가는 핸들, 깜빡이는 방향지시등, 브레이크(왼쪽)·가속 페달(오른쪽), 가속도(G), 주행 보조 상태를
+      그래픽으로 보여 줍니다. 칸이 좁으면 중요한 항목부터 보여 줍니다. (영상은 Windows가 따로 그리기 때문에 화면 위에 겹쳐
+      그릴 수는 없어 영상 바로 위 줄에 표시합니다.)</li>
     <li>현재 영상 경로는 빨간 선, 다른 영상 경로는 파란 선, 현재 위치는 진행 방향을 가리키는 주황 화살표입니다.</li>
     <li>경로를 누르면 그 장면의 해당 시점부터 재생합니다.</li>
     <li>주차 중 녹화처럼 위치 정보가 없는 영상은 지도를 처음 화면으로 되돌리고 안내를 표시합니다.</li>
@@ -170,8 +174,8 @@
 <section id="files">
   <h2>파일 위치·삭제</h2>
   <ul>
-    <li>설정·시청 기록·움직임 분석 목록·오류 기록: <code>%LOCALAPPDATA%\MyTeslaViewer</code></li>
-    <li>영상별 분석 결과(썸네일·스토리보드·객체 인식·SEI): 각 영상 폴더의 <code>.myteslaviewer_cache</code></li>
+    <li>설정·시청 기록·움직임 분석 목록·오류 기록: <code>%LOCALAPPDATA%\T6Viewer</code></li>
+    <li>영상별 분석 결과(썸네일·스토리보드·객체 인식·SEI): 각 영상 폴더의 <code>.t6_viewer_cache</code></li>
     <li>설정 창의 <b>모든 설정·기록 삭제</b>로 위 폴더를 지우고 프로그램을 끝낼 수 있습니다(열려 있는 폴더의 분석 결과도 함께 지울지 선택).
       프로그램을 더 쓰지 않을 때 이것을 실행한 뒤 프로그램 파일을 지우면 흔적이 남지 않습니다.</li>
   </ul>
@@ -182,7 +186,7 @@
   <ul>
     <li><b>재생이 끊기거나 느림</b>: 보는 카메라 수를 줄이거나 배속을 낮추세요. 설정에서 재생 중 분석 프로세스 수를 줄여도 됩니다.</li>
     <li><b>메모리 제한 안내가 나옴</b>: 앱 메모리가 4.5GB에 가까워 분석을 줄이거나 배속을 낮춘 것입니다. 재생은 계속됩니다.</li>
-    <li><b>프로그램이 갑자기 꺼짐</b>: <code>%LOCALAPPDATA%\MyTeslaViewer\crash.log</code>에 원인이 기록됩니다. 문의할 때 함께 보내 주세요.</li>
+    <li><b>프로그램이 갑자기 꺼짐</b>: <code>%LOCALAPPDATA%\T6Viewer\crash.log</code>에 원인이 기록됩니다. 문의할 때 함께 보내 주세요.</li>
     <li><b>복호화 버튼이 없음</b>: 이미 복호화된 폴더이거나 암호화 영상이 없는 폴더입니다.</li>
   </ul>
 </section>

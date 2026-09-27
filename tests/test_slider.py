@@ -2,7 +2,7 @@ from PySide6.QtCore import QPoint, Qt
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication
 
-from tesla_viewer.main_window import ClickSeekSlider
+from t6_viewer.main_window import ClickSeekSlider
 
 
 def test_clicking_timeline_groove_seeks_to_clicked_time(monkeypatch):

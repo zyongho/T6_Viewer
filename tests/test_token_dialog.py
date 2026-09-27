@@ -2,7 +2,7 @@ from pathlib import Path
 
 from PySide6.QtWidgets import QApplication
 
-from tesla_viewer.main_window import TokenDialog
+from t6_viewer.main_window import TokenDialog
 
 
 def test_failure_log_scrolls_without_expanding_dialog(monkeypatch):

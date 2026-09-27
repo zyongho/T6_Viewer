@@ -4,10 +4,10 @@ import datetime as dt
 
 from PySide6.QtWidgets import QApplication
 
-from tesla_viewer.app_settings import Settings, estimated_peak_gib, load_settings, rate_for_channels, save_settings
-from tesla_viewer.crypto import ClipGroup, ClipInfo
-from tesla_viewer.main_window import MainWindow
-from tesla_viewer.motion_scan import change_runs, merge_runs, next_change_ms
+from t6_viewer.app_settings import Settings, estimated_peak_gib, load_settings, rate_for_channels, save_settings
+from t6_viewer.crypto import ClipGroup, ClipInfo
+from t6_viewer.main_window import MainWindow
+from t6_viewer.motion_scan import change_runs, merge_runs, next_change_ms
 
 
 def _window(monkeypatch, tmp_path):
@@ -193,7 +193,7 @@ def test_analysis_settings_choose_scope_and_items(monkeypatch, tmp_path):
 
 
 def test_settings_dialog_returns_analysis_choices(monkeypatch, tmp_path):
-    from tesla_viewer.ui_widgets import SettingsDialog
+    from t6_viewer.ui_widgets import SettingsDialog
     window = _window(monkeypatch, tmp_path)
     dialog = SettingsDialog(Settings(), window)
     dialog.background.setChecked(False)
@@ -209,7 +209,7 @@ def test_settings_dialog_returns_analysis_choices(monkeypatch, tmp_path):
 
 
 def test_object_targets_live_in_settings_and_one_always_stays(monkeypatch, tmp_path):
-    from tesla_viewer.ui_widgets import SettingsDialog
+    from t6_viewer.ui_widgets import SettingsDialog
     window = _window(monkeypatch, tmp_path)
     dialog = SettingsDialog(Settings(object_categories=["person", "car"]), window)
     assert [name for name, box in dialog.targets.items() if box.isChecked()] == ["person", "car"]
@@ -282,7 +282,7 @@ def test_previous_and_next_clip_buttons_step_through_time(monkeypatch, tmp_path)
 
 
 def test_about_dialog_lists_notices_and_license_texts(monkeypatch, tmp_path):
-    from tesla_viewer.ui_widgets import AboutDialog
+    from t6_viewer.ui_widgets import AboutDialog
     window = _window(monkeypatch, tmp_path)
     dialog = AboutDialog(window)
     names = list(dialog.documents)
@@ -298,14 +298,14 @@ def test_about_dialog_lists_notices_and_license_texts(monkeypatch, tmp_path):
 
 def test_clear_app_data_removes_the_data_folder_and_caches_then_closes(monkeypatch, tmp_path):
     from PySide6.QtWidgets import QMessageBox
-    from tesla_viewer import main_window as module
-    from tesla_viewer.app_paths import data_dir
+    from t6_viewer import main_window as module
+    from t6_viewer.app_paths import data_dir
     window = _window(monkeypatch, tmp_path)
     folder = data_dir()
     (folder / "sub").mkdir(exist_ok=True)
     (folder / "settings.json").write_text("{}", encoding="utf-8")
     group = _group(tmp_path, "2026-09-26 08:00:00", "SentryClips")
-    cache = group.clips["front"].path.parent / ".myteslaviewer_cache"
+    cache = group.clips["front"].path.parent / ".t6_viewer_cache"
     cache.mkdir()
     window.current_root = tmp_path
     def confirm(box):
@@ -325,9 +325,9 @@ def test_clear_app_data_removes_the_data_folder_and_caches_then_closes(monkeypat
 
 
 def test_version_and_legacy_files_move_into_the_data_folder(monkeypatch, tmp_path):
-    import tesla_viewer
-    from tesla_viewer.app_paths import data_file
-    assert tesla_viewer.__version__ == "0.1.1"
+    import t6_viewer
+    from t6_viewer.app_paths import data_file
+    assert t6_viewer.__version__ == "0.1.1"
     (tmp_path / ".tesla_viewer_settings.json").write_text('{"auto_jump": true}', encoding="utf-8")
     target = data_file("settings.json", ".tesla_viewer_settings.json")
     assert target.read_text(encoding="utf-8") == '{"auto_jump": true}'

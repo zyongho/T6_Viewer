@@ -1,6 +1,6 @@
 """Leave a trace when the app dies: native faults, Qt messages, Python errors.
 
-Written to ``.tesla_viewer_crash.log`` in the working directory. A Qt abort
+Written to ``crash.log`` in the app's data folder. A Qt abort
 (e.g. a failed allocation inside the video pipeline) otherwise leaves no
 message at all, only a Windows Error Reporting entry.
 """

@@ -1,6 +1,6 @@
 # 오픈소스 고지 (Third-party notices)
 
-MyTeslaViewer는 아래 오픈소스 소프트웨어와 데이터를 사용합니다. 각 라이선스 전문은
+T6 Viewer(© zyongho, AGPL-3.0-or-later, https://github.com/zyongho/T6_Viwer)는 아래 오픈소스 소프트웨어와 데이터를 사용합니다. 각 라이선스 전문은
 이 고지와 함께 제공되는 `licenses` 폴더(프로그램 정보 창에서도 볼 수 있음)에 있습니다.
 
 ## Qt 6 / PySide6 / Shiboken6 — LGPL v3

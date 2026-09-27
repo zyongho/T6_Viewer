@@ -68,7 +68,7 @@ class TileMapWidget(QWidget):
     group_clicked = Signal(str, int)
 
     def __init__(self, provider: TileProvider, cache_dir: str | None = None,
-                 user_agent: str = "TeslaCamViewer", parent: QWidget | None = None):
+                 user_agent: str = "T6Viewer", parent: QWidget | None = None):
         super().__init__(parent)
         self.setMinimumWidth(300)
         self.setMouseTracking(True)

@@ -1,4 +1,4 @@
-from tesla_viewer.telemetry import TelemetrySample, vehicle_motion_label
+from t6_viewer.telemetry import TelemetrySample, vehicle_motion_label
 
 
 def test_motion_label_uses_telemetry_not_storage_folder():

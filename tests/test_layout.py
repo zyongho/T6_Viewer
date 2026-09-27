@@ -4,8 +4,8 @@ from PySide6.QtTest import QTest
 from PySide6.QtMultimedia import QMediaPlayer
 from PySide6.QtWidgets import QApplication, QSplitter, QTreeWidgetItem
 
-from tesla_viewer.main_window import CAMERA_DISPLAY_ORDER, MainWindow, StoryboardStrip
-from tesla_viewer.crypto import ClipGroup, ClipInfo
+from t6_viewer.main_window import CAMERA_DISPLAY_ORDER, MainWindow, StoryboardStrip
+from t6_viewer.crypto import ClipGroup, ClipInfo
 
 
 def test_camera_rows_match_pillar_front_and_repeater_rear(monkeypatch):
@@ -176,4 +176,18 @@ def test_empty_message_sits_in_the_list_not_behind_the_videos(monkeypatch):
     assert window.grid_layout.indexOf(label) == -1
     assert label.isVisible() and "TeslaCam" in label.text()
     assert label.geometry() == window.group_list.viewport().rect()
+    window.close()
+
+
+def test_drive_hud_sits_at_the_top_of_the_front_camera(monkeypatch):
+    monkeypatch.setenv("QT_QPA_PLATFORM", "offscreen")
+    QApplication.instance() or QApplication([])
+    window = MainWindow()
+    front = window.tiles_by_camera["front"]
+    assert window.drive_hud.parentWidget() is front
+    assert front.layout().indexOf(window.drive_hud) == 1      # right below the title
+    window.camera_buttons["front"].setChecked(False)           # Front hidden
+    assert window.drive_hud.parentWidget() is window.tiles_by_camera["left_pillar"]
+    window.camera_buttons["front"].setChecked(True)
+    assert window.drive_hud.parentWidget() is front
     window.close()

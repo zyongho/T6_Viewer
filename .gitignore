@@ -15,6 +15,7 @@ TeslaCam_Decrypted/
 TeslaCam_Decrypted_EncryptedBackup/
 아이리버/
 *.mp4
+.t6_viewer_cache/
 .myteslaviewer_cache/
 *.part
 *.token

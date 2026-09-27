@@ -1,6 +1,6 @@
 import numpy as np
 
-from tesla_viewer.motion import ParkedMotionDetector
+from t6_viewer.motion import ParkedMotionDetector
 
 
 def test_parked_motion_switches_to_base_speed_near_change():

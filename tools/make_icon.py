@@ -1,57 +1,88 @@
-"""Generate the app icon: a camera body filling the icon and a large lens
-whose six-blade aperture hints at the six car cameras. No brand marks.
+"""Generate the T6 Viewer icon: a camera body filling the icon, a large lens,
+and the letters "T6" laid over the lens (Pretendard Bold, bundled).
 
     python tools/make_icon.py
 
-Writes tesla_viewer/assets/app_icon.png (512 px) and app_icon.ico.
+Writes t6_viewer/assets/app_icon.png (512 px) and a multi-size app_icon.ico
+(16-256 px, so Windows picks a sharp image for every place it shows it).
 """
 
 from __future__ import annotations
 
-import math
+import struct
 import sys
 from pathlib import Path
 
-from PySide6.QtCore import QPointF, QRectF, Qt
+from PySide6.QtCore import QBuffer, QByteArray, QIODevice, QPointF, QRectF, Qt
 from PySide6.QtGui import (
-    QBrush, QColor, QGuiApplication, QImage, QLinearGradient, QPainter, QPainterPath, QPen, QRadialGradient,
+    QBrush, QColor, QFont, QFontDatabase, QGuiApplication, QImage, QLinearGradient, QPainter, QPainterPath,
+    QPen, QRadialGradient,
 )
 
 SIZE = 512
 CENTER = SIZE / 2
 LENS_R = 196          # outer barrel
 GLASS_R = 146         # visible glass
-OUT = Path(__file__).resolve().parent.parent / "tesla_viewer" / "assets"
+OUT = Path(__file__).resolve().parent.parent / "t6_viewer" / "assets"
+FONT_FILE = OUT / "fonts" / "Pretendard-Bold.otf"
+ICO_SIZES = (16, 24, 32, 48, 64, 128, 256)
 
 
-def aperture(painter: QPainter, center: QPointF) -> None:
-    """Six overlapping blades leaving a hexagonal opening in the glass."""
-    opening = GLASS_R * 0.42
-    reach = GLASS_R * 1.35
-    clip = QPainterPath()
-    clip.addEllipse(center, GLASS_R, GLASS_R)
+def lettering(painter: QPainter, center: QPointF) -> None:
+    """ "T6" across the whole lens: white T, red 6, with a soft shadow."""
+    family = QFontDatabase.applicationFontFamilies(QFontDatabase.addApplicationFont(str(FONT_FILE)))
+    font = QFont(family[0] if family else "Arial")
+    font.setWeight(QFont.Black if not family else QFont.Bold)
+    font.setPixelSize(10)
+    path_t, path_6 = QPainterPath(), QPainterPath()
+    path_t.addText(0, 0, font, "T")
+    path_6.addText(0, 0, font, "6")
+    # measure at 10 px, then scale so the pair spans the lens diameter
+    gap = -0.6
+    width = path_t.boundingRect().width() + gap + path_6.boundingRect().width()
+    height = max(path_t.boundingRect().height(), path_6.boundingRect().height())
+    scale = (LENS_R * 2 * 0.98) / width
+    left = center.x() - width * scale / 2
+    top = center.y() - height * scale / 2
     painter.save()
-    painter.setClipPath(clip)
-    for blade in range(6):
-        start = math.radians(blade * 60 - 90 + 12)
-        end = math.radians((blade + 1) * 60 - 90 + 12)
-        corner_a = QPointF(center.x() + opening * math.cos(start), center.y() + opening * math.sin(start))
-        corner_b = QPointF(center.x() + opening * math.cos(end), center.y() + opening * math.sin(end))
-        # each blade runs past the rim and is tilted a little, like a real iris
-        far_a = QPointF(center.x() + reach * math.cos(start + 0.55), center.y() + reach * math.sin(start + 0.55))
-        far_b = QPointF(center.x() + reach * math.cos(end + 0.55), center.y() + reach * math.sin(end + 0.55))
-        shade = QLinearGradient(corner_a, far_b)
-        tone = 58 + (blade % 2) * 14
-        shade.setColorAt(0.0, QColor(tone + 40, tone + 48, tone + 60))
-        shade.setColorAt(1.0, QColor(tone - 20, tone - 14, tone - 6))
-        blade_path = QPainterPath(corner_a)
-        for point in (corner_b, far_b, far_a):
-            blade_path.lineTo(point)
-        blade_path.closeSubpath()
-        painter.setPen(QPen(QColor(210, 220, 232, 150), 2.5))
-        painter.setBrush(QBrush(shade))
-        painter.drawPath(blade_path)
+    for path, color, offset in ((path_t, QColor("#ffffff"), 0.0),
+                                (path_6, QColor("#ff3b3b"), path_t.boundingRect().width() + gap)):
+        box = path.boundingRect()
+        painter.save()
+        painter.translate(left + (offset - box.left()) * scale, top - box.top() * scale)
+        painter.scale(scale, scale)
+        # shadow, dark outline, then the gradient fill
+        painter.translate(0.12, 0.16)
+        painter.fillPath(path, QColor(0, 0, 0, 120))
+        painter.translate(-0.12, -0.16)
+        painter.setPen(QPen(QColor("#0b0e12"), 0.38, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
+        fill = QLinearGradient(0, box.top(), 0, box.bottom())
+        fill.setColorAt(0.0, color.lighter(115))
+        fill.setColorAt(1.0, color.darker(118))
+        painter.setBrush(QBrush(fill))
+        painter.drawPath(path)
+        painter.restore()
     painter.restore()
+
+
+def write_ico(image: QImage, target: Path) -> None:
+    """A Windows .ico holding PNG images of every size in ICO_SIZES."""
+    blobs = []
+    for size in ICO_SIZES:
+        scaled = image.scaled(size, size, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        data = QByteArray()
+        buffer = QBuffer(data)
+        buffer.open(QIODevice.WriteOnly)
+        scaled.save(buffer, "PNG")
+        blobs.append((size, bytes(data.data())))
+    header = struct.pack("<HHH", 0, 1, len(blobs))
+    offset = 6 + 16 * len(blobs)
+    entries, payload = b"", b""
+    for size, blob in blobs:
+        entries += struct.pack("<BBBBHHII", size % 256, size % 256, 0, 0, 1, 32, len(blob), offset)
+        offset += len(blob)
+        payload += blob
+    target.write_bytes(header + entries + payload)
 
 
 def compose() -> QImage:
@@ -98,7 +129,6 @@ def compose() -> QImage:
     painter.setPen(Qt.NoPen)
     painter.setBrush(QBrush(glass))
     painter.drawEllipse(center, GLASS_R, GLASS_R)
-    aperture(painter, center)
     # reflections over everything, so it sits under the glass surface
     k = GLASS_R / 176
     glass_clip = QPainterPath()
@@ -113,6 +143,7 @@ def compose() -> QImage:
     painter.setBrush(QColor(120, 200, 255, 60))
     painter.drawEllipse(QPointF(CENTER + 96 * k, CENTER + 104 * k), 36 * k, 20 * k)
     painter.setClipping(False)
+    lettering(painter, center)
     # recording light in the body's top-right corner
     painter.setPen(QPen(QColor("#0b0e12"), 6))
     painter.setBrush(QColor("#ff3b30"))
@@ -126,7 +157,7 @@ def main() -> None:
     OUT.mkdir(parents=True, exist_ok=True)
     icon = compose()
     icon.save(str(OUT / "app_icon.png"))
-    icon.scaled(256, 256, Qt.KeepAspectRatio, Qt.SmoothTransformation).save(str(OUT / "app_icon.ico"))
+    write_ico(icon, OUT / "app_icon.ico")
     print("wrote", OUT / "app_icon.png")
 
 

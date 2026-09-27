@@ -1,9 +1,9 @@
 from pathlib import Path
 
-from tesla_viewer import derived_cache
-from tesla_viewer.telemetry import TelemetrySample
-from tesla_viewer.watch_progress import add_interval, coverage
-from tesla_viewer.memory_budget import (
+from t6_viewer import derived_cache
+from t6_viewer.telemetry import TelemetrySample
+from t6_viewer.watch_progress import add_interval, coverage
+from t6_viewer.memory_budget import (
     MIB, GROWTH_CEILING, TOTAL_BUDGET, WORKER_ESTIMATE, critical, memory_snapshot, over_budget,
     playback_reserve, preload_slots, worker_slots,
 )
@@ -30,7 +30,7 @@ def test_telemetry_is_parsed_once_then_loaded_from_clip_folder(monkeypatch, tmp_
     assert derived_cache.load_telemetry(clip) == [TelemetrySample(1000, vehicle_speed_mps=4.5)]
     assert derived_cache.load_telemetry(clip) == [TelemetrySample(1000, vehicle_speed_mps=4.5)]
     assert calls == [clip]
-    assert (tmp_path / ".myteslaviewer_cache" / "front.mp4.sei.json.gz").is_file()
+    assert (tmp_path / ".t6_viewer_cache" / "front.mp4.sei.json.gz").is_file()
 
 
 def test_image_cache_and_actual_playback_coverage(tmp_path: Path):
@@ -81,7 +81,7 @@ def test_memory_snapshot_counts_child_processes():
     import subprocess
     import sys
     import time
-    from tesla_viewer import memory_budget
+    from t6_viewer import memory_budget
     if os.name != "nt":
         return
     kernel, psapi = memory_budget._windows_api()
@@ -110,9 +110,9 @@ def test_memory_snapshot_counts_child_processes():
 def test_watched_color_requires_more_than_75_percent_actual_playback(monkeypatch, tmp_path: Path):
     from PySide6.QtMultimedia import QMediaPlayer
     from PySide6.QtWidgets import QApplication, QTreeWidgetItem
-    from tesla_viewer.crypto import ClipGroup, ClipInfo
-    from tesla_viewer.main_window import MainWindow
-    from tesla_viewer import main_window as module
+    from t6_viewer.crypto import ClipGroup, ClipInfo
+    from t6_viewer.main_window import MainWindow
+    from t6_viewer import main_window as module
 
     monkeypatch.setenv("QT_QPA_PLATFORM", "offscreen")
     app = QApplication.instance() or QApplication([])
@@ -150,9 +150,9 @@ def test_watched_color_requires_more_than_75_percent_actual_playback(monkeypatch
 
 def test_next_group_preloads_every_visible_channel(monkeypatch, tmp_path: Path):
     from PySide6.QtWidgets import QApplication
-    from tesla_viewer.crypto import ClipGroup, ClipInfo
-    from tesla_viewer.main_window import MainWindow
-    from tesla_viewer import main_window as module
+    from t6_viewer.crypto import ClipGroup, ClipInfo
+    from t6_viewer.main_window import MainWindow
+    from t6_viewer import main_window as module
 
     monkeypatch.setenv("QT_QPA_PLATFORM", "offscreen")
     app = QApplication.instance() or QApplication([])
@@ -223,3 +223,42 @@ def test_next_group_preloads_every_visible_channel(monkeypatch, tmp_path: Path):
     prepared = window._take_preload(next_group)
     assert set(prepared) == {"front", "back"}
     window.close()
+
+
+def test_results_in_the_old_cache_folder_are_renamed_and_reused(tmp_path: Path, monkeypatch):
+    clip = tmp_path / "front.mp4"
+    clip.write_bytes(b"clip")
+    monkeypatch.setattr(derived_cache, "_adopted", set())
+    legacy = tmp_path / ".myteslaviewer_cache"
+    legacy.mkdir()
+    # write a result with the current format into the old folder name
+    assert derived_cache.save_result(clip, "objects_v7", {"level": "quiet"})
+    (tmp_path / ".t6_viewer_cache").rename(legacy)
+    monkeypatch.setattr(derived_cache, "_adopted", set())
+    assert derived_cache.load_result(clip, "objects_v7") == {"level": "quiet"}
+    assert (tmp_path / ".t6_viewer_cache").is_dir() and not legacy.exists()
+
+
+def test_old_cache_folder_is_still_read_when_it_cannot_be_renamed(tmp_path: Path, monkeypatch):
+    clip = tmp_path / "front.mp4"
+    clip.write_bytes(b"clip")
+    monkeypatch.setattr(derived_cache, "_adopted", set())
+    assert derived_cache.save_result(clip, "sei", [1, 2])
+    (tmp_path / ".t6_viewer_cache").rename(tmp_path / ".myteslaviewer_cache")
+    monkeypatch.setattr(derived_cache, "_adopted", set())
+    monkeypatch.setattr(derived_cache.os, "rename", lambda *args: (_ for _ in ()).throw(OSError("in use")))
+    assert derived_cache.load_result(clip, "sei") == [1, 2]
+    assert "front.mp4.sei.json.gz" in derived_cache.cache_listing(tmp_path)
+
+
+def test_data_folder_of_the_old_app_name_is_adopted(tmp_path: Path, monkeypatch):
+    from t6_viewer import app_paths
+    monkeypatch.delenv("T6VIEWER_HOME", raising=False)
+    monkeypatch.setattr(app_paths.os, "name", "nt")
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
+    old = tmp_path / "MyTeslaViewer"
+    old.mkdir()
+    (old / "settings.json").write_text('{"vworld_key": "abc"}', encoding="utf-8")
+    folder = app_paths.data_dir()
+    assert folder == tmp_path / "T6Viewer"
+    assert (folder / "settings.json").read_text(encoding="utf-8") == '{"vworld_key": "abc"}'

@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from tesla_viewer.main_window import DecryptWorker
+from t6_viewer.main_window import DecryptWorker
 
 
 def _encrypted_event(path: Path, index: int) -> None:
@@ -14,7 +14,7 @@ def test_encrypted_event_json_is_skipped_without_key_requests_or_errors(tmp_path
     for index in range(3):
         _encrypted_event(source / "SentryClips" / str(index) / "event.json", index)
     calls = []
-    monkeypatch.setattr("tesla_viewer.main_window.fetch_keys",
+    monkeypatch.setattr("t6_viewer.main_window.fetch_keys",
                         lambda _token, headers, progress=None: calls.append(list(headers)) or {})
     results = []
     worker = DecryptWorker(source, output, "unused", False)
@@ -37,8 +37,8 @@ def test_plain_event_json_is_copied_and_encrypted_one_is_left_alone(tmp_path: Pa
     video = source / "SentryClips" / "a" / "2026-09-26_08-00-00-front.mp4"
     video.write_bytes(b"\0" * 64)  # not a plain MP4: counts as encrypted
     headers = []
-    monkeypatch.setattr("tesla_viewer.main_window.read_file_header", lambda path: {"id": path.name})
-    monkeypatch.setattr("tesla_viewer.main_window.fetch_keys",
+    monkeypatch.setattr("t6_viewer.main_window.read_file_header", lambda path: {"id": path.name})
+    monkeypatch.setattr("t6_viewer.main_window.fetch_keys",
                         lambda _token, items, progress=None: headers.extend(items) or {})
     progress, results = [], []
     worker = DecryptWorker(source, output, "unused", False)

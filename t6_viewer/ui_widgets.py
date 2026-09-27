@@ -215,7 +215,7 @@ class SettingsDialog(QDialog):
         rows.addLayout(path_row)
         cache_row = QHBoxLayout()
         cache_note = QLabel("영상별 분석 결과(썸네일·스토리보드·객체 인식·SEI): 각 영상 폴더의 "
-                            "<code>.myteslaviewer_cache</code>")
+                            "<code>.t6_viewer_cache</code>")
         cache_note.setStyleSheet("color: #aebdca;")
         cache_row.addWidget(cache_note, 1)
         clear_button = QPushButton("모든 설정·기록 삭제…")
@@ -476,7 +476,7 @@ class AboutDialog(QDialog):
         )
         header = QHBoxLayout()
         icon = QLabel()
-        icon.setPixmap(QIcon(str(resource("tesla_viewer", "assets", "app_icon.png"))).pixmap(72, 72))
+        icon.setPixmap(QIcon(str(resource("t6_viewer", "assets", "app_icon.png"))).pixmap(72, 72))
         header.addWidget(icon)
         details = []
         if AUTHOR:
@@ -486,8 +486,8 @@ class AboutDialog(QDialog):
         if PROJECT_URL:
             details.append(f"<a style='color:#59b5ff' href='{PROJECT_URL}'>{PROJECT_URL}</a> (소스·문의·업데이트)")
         title = QLabel(
-            f"<b style='font-size:16px'>MyTeslaViewer</b> &nbsp; Ver {__version__}<br>"
-            "TeslaCam 6채널 영상 뷰어 · 로컬 복호화 · 주행 정보 지도 · 움직임 스킵<br>"
+            f"<b style='font-size:16px'>T6 Viewer</b> &nbsp; Ver {__version__}<br>"
+            "Tesla dashcam smart viewer — 6채널 동시 재생 · 움직임 스킵 · 주행 정보 · 로컬 복호화<br>"
             + ("<br>".join(details) + "<br>" if details else "")
             + "<span style='color:#aebdca'>Tesla, Inc.와 관련이 없는 비공식 프로그램입니다. "
             "영상은 이 PC에서만 처리하며 외부로 전송하지 않습니다. 이 프로그램은 있는 그대로 제공되며, "
@@ -497,6 +497,7 @@ class AboutDialog(QDialog):
         title.setOpenExternalLinks(True)
         header.addWidget(title, 1)
         self.documents = {"버전 기록": resource("docs", "CHANGELOG.md"),
+                          "이 프로그램의 라이선스 (AGPL-3.0)": resource("LICENSE"),
                           "오픈소스 고지": resource("licenses", "THIRD_PARTY_NOTICES.md")}
         for path in sorted(resource("licenses").glob("*.txt")):
             self.documents[f"라이선스 전문: {path.stem}"] = path

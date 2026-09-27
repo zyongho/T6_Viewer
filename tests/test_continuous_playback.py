@@ -11,9 +11,9 @@ from PySide6.QtCore import QUrl
 from PySide6.QtMultimedia import QMediaPlayer
 from PySide6.QtWidgets import QApplication
 
-from tesla_viewer.analysis_pool import AnalysisPool, Job
-from tesla_viewer.crypto import ClipGroup, ClipInfo
-from tesla_viewer.main_window import MainWindow, VideoTile
+from t6_viewer.analysis_pool import AnalysisPool, Job
+from t6_viewer.crypto import ClipGroup, ClipInfo
+from t6_viewer.main_window import MainWindow, VideoTile
 
 
 def _make_clip(path: Path, seconds: float) -> None:
@@ -185,8 +185,8 @@ def test_first_and_last_fifth_of_a_clip_are_held_to_8x(monkeypatch, tmp_path):
                     reason="ffmpeg needed to generate clips")
 def test_storyboard_frames_arrive_progressively_then_as_one_cached_sheet(monkeypatch, tmp_path):
     from PySide6.QtGui import QImage
-    from tesla_viewer import derived_cache
-    from tesla_viewer.main_window import StoryboardWorker
+    from t6_viewer import derived_cache
+    from t6_viewer.main_window import StoryboardWorker
 
     QApplication.instance() or QApplication([])
     clip = tmp_path / "front.mp4"
@@ -227,8 +227,8 @@ def test_clips_without_storyboard_are_queued_for_the_background_pool(monkeypatch
 
 
 def test_memory_governor_sheds_optional_work_but_never_stops_playback(monkeypatch, tmp_path):
-    from tesla_viewer import main_window as module
-    from tesla_viewer.memory_budget import MIB, TOTAL_BUDGET
+    from t6_viewer import main_window as module
+    from t6_viewer.memory_budget import MIB, TOTAL_BUDGET
 
     monkeypatch.setenv("QT_QPA_PLATFORM", "offscreen")
     QApplication.instance() or QApplication([])

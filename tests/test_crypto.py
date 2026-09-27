@@ -5,7 +5,7 @@ import struct
 
 from Crypto.Cipher import AES
 
-from tesla_viewer.crypto import CHUNK_SIZE, archive_encrypted_outputs, delete_verified_encrypted_source, discover_encrypted_sidecars, discover_events, discover_groups, decrypt_file, is_plain_json, is_plain_mp4
+from t6_viewer.crypto import CHUNK_SIZE, archive_encrypted_outputs, delete_verified_encrypted_source, discover_encrypted_sidecars, discover_events, discover_groups, decrypt_file, is_plain_json, is_plain_mp4
 
 
 def _write_plain(path: Path) -> None:

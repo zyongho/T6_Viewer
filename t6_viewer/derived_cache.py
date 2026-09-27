@@ -15,6 +15,9 @@ from .telemetry import TelemetrySample, extract_telemetry
 
 
 CACHE_VERSION = 1
+CACHE_DIR_NAME = ".t6_viewer_cache"
+LEGACY_CACHE_DIR_NAMES = (".myteslaviewer_cache",)  # earlier name of the app
+_adopted: set[str] = set()
 _locks_guard = threading.Lock()
 _telemetry_locks: dict[str, threading.Lock] = {}
 
@@ -24,19 +27,55 @@ def _signature(path: Path) -> list[int]:
     return [stat.st_size, stat.st_mtime_ns]
 
 
+def cache_folder(clip_folder: Path) -> Path:
+    """The results folder beside the clips; renames an older one on first use."""
+    target = clip_folder / CACHE_DIR_NAME
+    key = str(clip_folder)
+    if key not in _adopted:
+        _adopted.add(key)
+        if not target.exists():
+            for name in LEGACY_CACHE_DIR_NAMES:
+                legacy = clip_folder / name
+                if legacy.is_dir():
+                    try:
+                        os.rename(legacy, target)
+                    except OSError:
+                        pass  # in use, or another process renamed it first
+                    break
+    return target
+
+
+def legacy_cache_folders(clip_folder: Path) -> list[Path]:
+    """Older results folders that could not be renamed (still read from)."""
+    return [clip_folder / name for name in LEGACY_CACHE_DIR_NAMES if (clip_folder / name).is_dir()]
+
+
+def cache_listing(clip_folder: Path) -> set[str]:
+    names: set[str] = set()
+    for folder in (cache_folder(clip_folder), *legacy_cache_folders(clip_folder)):
+        try:
+            names.update(os.listdir(folder))
+        except OSError:
+            pass
+    return names
+
+
 def _cache_path(path: Path, kind: str) -> Path:
-    return path.parent / ".myteslaviewer_cache" / f"{path.name}.{kind}.json.gz"
+    return cache_folder(path.parent) / f"{path.name}.{kind}.json.gz"
 
 
 def load_result(path: Path, kind: str):
-    try:
-        signature = _signature(path)
-        with gzip.open(_cache_path(path, kind), "rt", encoding="utf-8") as stream:
-            payload = json.load(stream)
-        if payload.get("version") == CACHE_VERSION and payload.get("source") == signature:
-            return payload.get("result")
-    except (OSError, ValueError, TypeError, AttributeError, EOFError):
-        pass
+    candidates = [_cache_path(path, kind)] + [
+        folder / f"{path.name}.{kind}.json.gz" for folder in legacy_cache_folders(path.parent)]
+    for candidate in candidates:
+        try:
+            signature = _signature(path)
+            with gzip.open(candidate, "rt", encoding="utf-8") as stream:
+                payload = json.load(stream)
+            if payload.get("version") == CACHE_VERSION and payload.get("source") == signature:
+                return payload.get("result")
+        except (OSError, ValueError, TypeError, AttributeError, EOFError):
+            continue
     return None
 
 
