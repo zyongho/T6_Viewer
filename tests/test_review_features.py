@@ -286,13 +286,15 @@ def test_about_dialog_lists_notices_and_license_texts(monkeypatch, tmp_path):
     window = _window(monkeypatch, tmp_path)
     dialog = AboutDialog(window)
     names = list(dialog.documents)
-    assert names[:2] == ["버전 기록", "오픈소스 고지"]
+    assert names[:3] == ["버전 기록", "이 프로그램의 라이선스 (AGPL-3.0)", "오픈소스 고지"]
     assert "Ver 0.1.1" in dialog.text.toPlainText()
     dialog.choice.setCurrentText("오픈소스 고지")
     assert any("LGPL-3.0" in name for name in names) and any("GPL-3.0" in name for name in names)
     assert "PySide6" in dialog.text.toPlainText() and "Tesla, Inc." in dialog.text.toPlainText()
     dialog.choice.setCurrentText(next(name for name in names if "LGPL-3.0" in name))
     assert "GNU LESSER GENERAL PUBLIC LICENSE" in dialog.text.toPlainText()
+    dialog.choice.setCurrentText("이 프로그램의 라이선스 (AGPL-3.0)")
+    assert "GNU AFFERO GENERAL PUBLIC LICENSE" in dialog.text.toPlainText()
     window.close()
 
 
