@@ -5,7 +5,7 @@ from PySide6.QtWidgets import QApplication, QTreeWidgetItem
 from tesla_viewer.crypto import ClipGroup, ClipInfo
 from tesla_viewer import analysis_jobs
 from tesla_viewer.analysis_pool import AnalysisPool, Job
-from tesla_viewer.main_window import MainWindow, MapWidget
+from tesla_viewer.main_window import MainWindow
 from tesla_viewer.motion_scan import adaptive_rate, analyze_motion_frames, classify_motion_frames, analysis_group_order
 from tesla_viewer.telemetry import TelemetrySample, nearest_sample
 
@@ -32,22 +32,36 @@ def test_rapid_list_clicks_load_only_latest(monkeypatch):
     window.close()
 
 
-def test_map_selection_does_not_resend_unchanged_routes(monkeypatch):
-    calls = []
-    class Page:
-        runJavaScript = staticmethod(calls.append)
-
-    class FakeMap:
-        page = staticmethod(lambda: Page())
-
-    widget = FakeMap()
-    widget._ready = True
-    widget._sent_routes = {}
-    routes = {"one": [[37.0, 127.0, 0]], "two": [[38.0, 128.0, 0]]}
-    MapWidget.set_group_routes(widget, routes, "one")
-    MapWidget.set_group_routes(widget, routes, "two", focus=True)
-    assert '"one"' in calls[0] and '"two"' in calls[0]
-    assert calls[1].startswith("window.updateRoutes([],[],")
+def test_tile_map_projection_fit_and_route_click(monkeypatch):
+    from PySide6.QtCore import QPointF
+    from tesla_viewer.tile_map import HOME, TileMapWidget, openstreetmap, to_latlon, to_world
+    monkeypatch.setenv("QT_QPA_PLATFORM", "offscreen")
+    QApplication.instance() or QApplication([])
+    lat, lon = to_latlon(*to_world(37.5, 127.0))
+    assert abs(lat - 37.5) < 1e-9 and abs(lon - 127.0) < 1e-9
+    widget = TileMapWidget(openstreetmap())
+    widget._request = lambda key: None            # no network in tests
+    widget.resize(400, 400)
+    route = [[37.50, 127.00, 0], [37.51, 127.01, 30000], [37.52, 127.02, 60000]]
+    widget.set_group_routes({"a": route, "b": [[37.60, 127.10, 0]]}, "a", None, focus=True)
+    assert widget._message == "" and widget.zoom >= 12
+    clicked = []
+    widget.group_clicked.connect(lambda key, ms: clicked.append((key, ms)))
+    middle = widget._to_screen(*widget._routes["a"][1][:2])
+    widget._drag, widget._drag_moved = middle, False
+    class Release:
+        def button(self):
+            return Qt.LeftButton
+        def position(self):
+            return QPointF(middle.x() + 3, middle.y())
+    widget.mouseReleaseEvent(Release())
+    assert clicked == [("a", 30000)]
+    # A clip without location goes back to the start-up view with a note.
+    widget.set_group_routes({"a": route}, "c", None, focus=True)
+    assert widget.center == to_world(*HOME) and "위치 정보가 없습니다" in widget._message
+    widget.set_position([37.5, 127.0, 0, 90.0])
+    assert widget._position[3] == 90.0
+    widget.close()
 
 
 def test_motion_signal_levels_and_nearest_sample():

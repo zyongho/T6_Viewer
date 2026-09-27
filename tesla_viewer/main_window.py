@@ -19,8 +19,6 @@ from PySide6.QtCore import QBuffer, QByteArray, QEvent, QIODevice, QObject, QThr
 from PySide6.QtGui import QBrush, QColor, QDesktopServices, QDragEnterEvent, QDropEvent, QIcon, QImage, QKeySequence, QPainter, QPixmap, QShortcut
 from PySide6.QtMultimedia import QMediaPlayer, QVideoFrame, QVideoSink
 from PySide6.QtMultimediaWidgets import QVideoWidget
-from PySide6.QtWebChannel import QWebChannel
-from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6.QtWidgets import (
     QApplication,
     QDialog,
@@ -76,7 +74,9 @@ from .telemetry import (
     vehicle_motion_label,
 )
 from . import video_decode
+from . import __version__
 from .app_paths import data_dir, data_file
+from .tile_map import TileMapWidget, TileProvider, openstreetmap, vworld
 from .analysis_jobs import OBJECTS_CACHE_KIND
 from .analysis_pool import AnalysisPool, Job
 from .derived_cache import load_image, save_image, load_result, load_telemetry
@@ -452,186 +452,6 @@ class VideoTile(QWidget):
     def show_thumbnail(self) -> None:
         self.release_video()
         self.display.setCurrentWidget(self.thumbnail)
-
-
-class MapBridge(QObject):
-    group_clicked = Signal(str, int)
-
-    @Slot(str, int)
-    def select_group(self, group_key: str, position_ms: int) -> None:
-        self.group_clicked.emit(group_key, position_ms)
-
-
-class MapWidget(QWebEngineView):
-    """Leaflet/OSM map with a lightweight no-GPS fallback."""
-
-    group_clicked = Signal(str, int)
-
-    def __init__(self, parent: QWidget | None = None):
-        super().__init__(parent)
-        self._bridge = MapBridge()
-        self._channel = QWebChannel(self.page())
-        self._channel.registerObject("bridge", self._bridge)
-        self.page().setWebChannel(self._channel)
-        self._bridge.group_clicked.connect(self.group_clicked)
-        self._ready = False
-        self._pending_routes: dict[str, list[list[float]]] = {}
-        self._pending_selected: str | None = None
-        self._pending_position: list[float] | None = None
-        self._pending_focus = False
-        self._sent_routes: dict[str, list[list[float]]] = {}
-        self._last_position_sent = 0.0
-        self.setMinimumWidth(370)
-        self.loadFinished.connect(self._loaded)
-        self.setHtml(
-            """
-            <!doctype html><html><head><meta charset="utf-8">
-            <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-            <style>html,body,#map{height:100%;margin:0;background:#151b22;color:#dce4ed}
-            .nav-arrow{background:none;border:0;filter:drop-shadow(0 1px 2px rgba(0,0,0,.5));}
-            #message{position:absolute;z-index:1000;left:12px;right:12px;top:12px;
-            padding:9px;background:rgba(16,19,24,.9);border-radius:5px;font:13px sans-serif;
-            text-align:center;pointer-events:none}</style></head><body>
-            <div id="map"></div><div id="message">영상 위치를 읽는 중...</div>
-            <script src="qrc:///qtwebchannel/qwebchannel.js"></script>
-            <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-            <script>
-            const HOME=[37.5665,126.9780], HOME_ZOOM=12;
-            const map=L.map('map',{zoomControl:true}).setView(HOME,HOME_ZOOM);
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-              {maxZoom:19,attribution:'© OpenStreetMap contributors'}).addTo(map);
-            let routeLayers={};
-            let routePoints={};
-            let marker=null;
-            let selectedRouteId=null;
-            let currentPositionMs=0;
-            let bridge=null;
-            new QWebChannel(qt.webChannelTransport, channel=>{bridge=channel.objects.bridge;});
-            // Current clip's route red, other clips blue; the current position
-            // is an orange navigation arrow.
-            function routeStyle(active){
-              const color=active?'#e53935':'#1f6bff';
-              return {color:color,weight:active?7:5,opacity:0.95,fillColor:color,fillOpacity:0.9,
-                radius:active?8:6};
-            }
-            function arrowIcon(heading){
-              const svg='<svg xmlns="http://www.w3.org/2000/svg" width="34" height="34" viewBox="0 0 34 34">'+
-                '<g transform="rotate('+(heading||0)+' 17 17)">'+
-                '<path d="M17 3 L28 29 L17 23 L6 29 Z" fill="#ff6a13" stroke="#ffffff" stroke-width="2.5" stroke-linejoin="round"/>'+
-                '</g></svg>';
-              return L.divIcon({html:svg,className:'nav-arrow',iconSize:[34,34],iconAnchor:[17,17]});
-            }
-            window.updateRoutes=function(changed,removed,selected,current,focus){
-              const previousSelected=selectedRouteId;
-              selectedRouteId=selected;
-              removed.forEach(id=>{
-                if(routeLayers[id]) map.removeLayer(routeLayers[id]);
-                delete routeLayers[id]; delete routePoints[id];
-              });
-              changed.forEach(item=>{
-                if(routeLayers[item.id]) map.removeLayer(routeLayers[item.id]);
-                routePoints[item.id]=item.points;
-                const active=item.id===selected;
-                const points=item.points.map(p=>[p[0],p[1]]);
-                const layer=item.points.length===1
-                  ? L.circleMarker(points[0],routeStyle(active))
-                  : L.polyline(points,routeStyle(active));
-                layer.on('click',event=>{
-                  if(!bridge) return;
-                  let nearest=0, distance=Infinity;
-                  const cursor=map.latLngToLayerPoint(event.latlng);
-                  item.points.forEach((point,index)=>{
-                    const pixel=map.latLngToLayerPoint([point[0],point[1]]);
-                    const d=cursor.distanceTo(pixel);
-                    if(d<distance){distance=d;nearest=index;}
-                  });
-                  bridge.select_group(item.id,Math.round(item.points[nearest][2]||0));
-                });
-                layer.addTo(map); routeLayers[item.id]=layer;
-              });
-              [previousSelected,selected].forEach(id=>{
-                if(id&&routeLayers[id]) routeLayers[id].setStyle(routeStyle(id===selected));
-              });
-              if(selected&&routeLayers[selected]&&routeLayers[selected].bringToFront) routeLayers[selected].bringToFront();
-              const selectedPoints=routePoints[selected]||[];
-              const message=document.getElementById('message');
-              if(selectedPoints.length){
-                message.style.display='none';
-                if(focus){
-                  if(selectedPoints.length===1) map.setView(selectedPoints[0],17);
-                  else map.fitBounds(L.latLngBounds(selectedPoints),{padding:[24,24],maxZoom:17});
-                }
-              } else if(selected){
-                // No location for this clip (e.g. parked recording): go back to
-                // the start-up view so an old position is not mistaken for it.
-                if(focus) map.setView(HOME,HOME_ZOOM);
-                message.style.display='block';
-                message.textContent='현재 영상에는 위치 정보가 없습니다 (주차 중 녹화 등).';
-              } else {
-                message.style.display=Object.keys(routeLayers).length?'none':'block';
-                message.textContent='표시할 GPS 텔레메트리가 없습니다.';
-              }
-              window.setPosition(current);
-            };
-            window.setPosition=function(current){
-              if(!current){if(marker){map.removeLayer(marker);marker=null;}return;}
-              currentPositionMs=Math.round(current[2]||0);
-              if(!marker){
-                marker=L.marker([current[0],current[1]],{icon:arrowIcon(current[3]),zIndexOffset:1000}).addTo(map);
-                marker.on('click',()=>{if(bridge&&selectedRouteId){bridge.select_group(selectedRouteId,currentPositionMs);}});
-                marker._heading=current[3];
-              }
-              marker.setLatLng([current[0],current[1]]);
-              if(current[3]!=null&&Math.abs((marker._heading||0)-current[3])>2){
-                marker.setIcon(arrowIcon(current[3])); marker._heading=current[3];
-              }
-            };
-            window.addEventListener('resize',()=>map.invalidateSize());
-            </script></body></html>
-            """,
-            QUrl("https://unpkg.com/"),
-        )
-
-    def _loaded(self, ok: bool) -> None:
-        self._ready = ok
-        if ok:
-            self._sent_routes = {}
-            self.set_group_routes(self._pending_routes, self._pending_selected, self._pending_position, self._pending_focus)
-
-    def set_group_routes(
-        self,
-        routes: dict[str, list[list[float]]],
-        selected: str | None = None,
-        current: list[float] | None = None,
-        focus: bool = False,
-    ) -> None:
-        self._pending_routes = routes
-        self._pending_selected = selected
-        self._pending_position = current
-        self._pending_focus = focus
-        if not self._ready:
-            return
-        previous = getattr(self, "_sent_routes", {})
-        changed = [
-            {"id": key, "points": points}
-            for key, points in routes.items()
-            if key not in previous or (previous[key] is not points and previous[key] != points)
-        ]
-        removed = [key for key in previous if key not in routes]
-        self._sent_routes = routes.copy()
-        self.page().runJavaScript(
-            f"window.updateRoutes({json.dumps(changed, separators=(',', ':'))},"
-            f"{json.dumps(removed)},"
-            f"{json.dumps(selected)},{json.dumps(current)},{json.dumps(focus)});"
-        )
-
-    def set_position(self, current: list[float] | None) -> None:
-        changed = current != self._pending_position
-        self._pending_position = current
-        now = time.monotonic()
-        if self._ready and (current is None and changed or now - self._last_position_sent >= 0.2):
-            self._last_position_sent = now
-            self.page().runJavaScript(f"window.setPosition({json.dumps(current)});")
 
 
 class DecryptWorker(QObject):
@@ -1220,7 +1040,8 @@ class MainWindow(QMainWindow):
         direction_bar.addWidget(self.map_toggle)
         video_panel_layout.addLayout(direction_bar)
         video_panel_layout.addWidget(self.video_stack, 1)
-        self.map_widget = MapWidget()
+        self.map_widget = TileMapWidget(self._map_provider(), str(data_dir() / "tile_cache"),
+                                        f"TeslaCamViewer/{__version__}")
         self.map_widget.group_clicked.connect(self.map_group_selected)
         self.telemetry_labels: dict[str, QLabel] = {}
         telemetry_panel = self.create_telemetry_panel()
@@ -2510,6 +2331,7 @@ class MainWindow(QMainWindow):
         self.set_object_categories(set(self.settings.object_categories))
         if not save_settings(self._settings_path, self.settings):
             self.statusBar().showMessage("설정을 파일에 저장하지 못했습니다. 이번 실행에만 적용합니다.")
+        self.map_widget.set_provider(self._map_provider())
         self._apply_analysis_settings()
 
     def clear_app_data(self) -> None:
@@ -2570,6 +2392,10 @@ class MainWindow(QMainWindow):
                 if group is not None:
                     self._show_progress(item, group)
         self._govern_analysis()
+
+    def _map_provider(self) -> TileProvider:
+        key = self.settings.vworld_key.strip()
+        return vworld(key) if key else openstreetmap()
 
     def _current_rate(self) -> float:
         return self.master.playbackRate() if self._play_requested else 0.0

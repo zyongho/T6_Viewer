@@ -10,7 +10,7 @@ import os
 for _name in ("OPENBLAS_NUM_THREADS", "OMP_NUM_THREADS", "MKL_NUM_THREADS"):
     os.environ.setdefault(_name, "1")
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 
 # Shown in the 정보 (About) window. Fill in before publishing; empty values
 # are simply not shown.

@@ -1,7 +1,7 @@
 """Conservative Windows memory admission for playback, preload and analysis.
 
 The budget covers the whole application: the UI process plus every process it
-started (analysis workers, QtWebEngine helpers).
+started (analysis workers).
 It is a soft ceiling enforced by admission and shedding, not an OS limit.
 Priority when memory is short: current playback > next-clip preload >
 background analysis.

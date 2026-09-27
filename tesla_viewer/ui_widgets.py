@@ -16,6 +16,7 @@ from PySide6.QtWidgets import (
     QGridLayout,
     QHBoxLayout,
     QLabel,
+    QLineEdit,
     QPushButton,
     QSpinBox,
     QTextBrowser,
@@ -174,6 +175,23 @@ class SettingsDialog(QDialog):
         help_button = buttons.addButton("❓ 도움말", QDialogButtonBox.HelpRole)
         help_button.clicked.connect(open_help)
         layout.addSpacing(8)
+        layout.addWidget(QLabel("<b>지도</b>"))
+        map_row = QHBoxLayout()
+        map_row.addWidget(QLabel("브이월드 API 키"))
+        self.vworld_key = QLineEdit(settings.vworld_key)
+        self.vworld_key.setPlaceholderText("비워 두면 OpenStreetMap 지도(시험용)로 표시")
+        self.vworld_key.setStyleSheet("color: #edf2f7; background: #202832; border: 1px solid #536477; padding: 3px;")
+        map_row.addWidget(self.vworld_key, 1)
+        issue = QPushButton("키 발급 안내")
+        issue.clicked.connect(lambda: QDesktopServices.openUrl(QUrl("https://www.vworld.kr/dev/v4api.do")))
+        map_row.addWidget(issue)
+        layout.addLayout(map_row)
+        map_note = QLabel("브이월드는 국토교통부가 무료로 제공하는 국내 지도입니다(회원 가입 후 무료 API 키 발급). "
+                          "키가 없으면 OpenStreetMap 타일을 쓰는데, 이는 개인 시험용이며 공개 배포 앱에는 허가가 필요합니다.")
+        map_note.setWordWrap(True)
+        map_note.setStyleSheet("color: #aebdca;")
+        layout.addWidget(map_note)
+        layout.addSpacing(8)
         layout.addWidget(QLabel("<b>저장 위치</b>"))
         layout.addLayout(self._storage_rows())
         layout.addWidget(buttons)
@@ -253,6 +271,7 @@ class SettingsDialog(QDialog):
             max_decode_load=self.load.value(), analysis_playing=self.playing.value(),
             analysis_idle=self.idle.value(), analysis_fast=self.fast.value(),
             analysis_background=self.background.isChecked(),
+            vworld_key=self.vworld_key.text().strip(),
             object_categories=[name for name, box in self.targets.items() if box.isChecked()],
             **{name: box.isChecked() for name, box in self.items.items()},
         ).clamp()

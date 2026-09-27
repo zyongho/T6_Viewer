@@ -10,8 +10,6 @@ MyTeslaViewer는 아래 오픈소스 소프트웨어와 데이터를 사용합�
   <https://code.qt.io/cgit/pyside/pyside-setup.git/>
 - 사용자는 이 프로그램이 사용하는 Qt 라이브러리를 수정하거나 다른 버전으로 교체해 사용할 권리가
   있습니다. 이를 위한 이 프로그램의 소스 코드와 빌드 방법은 배포처에서 받을 수 있습니다.
-- Qt WebEngine(지도 표시)에는 Chromium과 그 제3자 구성요소가 포함되어 있습니다:
-  <https://doc.qt.io/qt-6/qtwebengine-licensing.html>
 - Qt Multimedia(영상 재생)는 LGPL로 빌드된 FFmpeg 라이브러리를 사용합니다.
 
 ## FFmpeg — LGPL v2.1 이상
@@ -42,15 +40,13 @@ MyTeslaViewer는 아래 오픈소스 소프트웨어와 데이터를 사용합�
 ## Python — PSF License
 - © Python Software Foundation. <https://www.python.org/>
 
-## Leaflet — BSD 2-Clause
-- © Volodymyr Agafonkin, CloudMade. <https://leafletjs.com/>
-
 ## Pretendard 글꼴 — SIL Open Font License 1.1
 - © Kil Hyung-jin, Reserved Font Name Pretendard. <https://github.com/orioncactus/pretendard>
   (라이선스 전문: `Pretendard-OFL-1.1.txt`)
 
-## 지도 데이터 — © OpenStreetMap contributors (ODbL)
-- <https://www.openstreetmap.org/copyright> 지도 화면에 출처를 표시합니다.
+## 지도
+- 브이월드 지도: © 국토교통부 브이월드 <https://www.vworld.kr/> (API 키 사용, 지도 화면에 출처 표시)
+- OpenStreetMap: © OpenStreetMap contributors (ODbL) <https://www.openstreetmap.org/copyright>
 
 ## 상표
 - Tesla 및 Tesla 로고는 Tesla, Inc.의 상표입니다. 이 프로그램은 Tesla, Inc.와 관련이 없으며

@@ -38,6 +38,8 @@ class Settings:
     analysis_preview: bool = True
     # Which moving objects count as a change (non-driving clips only).
     object_categories: list[str] = field(default_factory=lambda: list(OBJECT_TARGETS))
+    # Map tiles: VWorld (Korea) when a key is set, otherwise OpenStreetMap.
+    vworld_key: str = ""
 
     def clamp(self) -> "Settings":
         self.max_decode_load = max(6, min(96, int(self.max_decode_load)))
@@ -47,6 +49,7 @@ class Settings:
         for name in ("auto_jump", "analysis_background", "analysis_objects", "analysis_storyboard",
                      "analysis_sei", "analysis_preview"):
             setattr(self, name, bool(getattr(self, name)))
+        self.vworld_key = str(self.vworld_key or "").strip()
         chosen = self.object_categories if isinstance(self.object_categories, (list, tuple, set)) else []
         self.object_categories = [name for name in OBJECT_TARGETS if name in chosen] or list(OBJECT_TARGETS)
         return self
