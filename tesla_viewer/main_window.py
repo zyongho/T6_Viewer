@@ -77,6 +77,7 @@ from .telemetry import (
 )
 from . import video_decode
 from .app_paths import data_dir, data_file
+from .drive_hud import DriveHud, is_driving
 from .analysis_jobs import OBJECTS_CACHE_KIND
 from .analysis_pool import AnalysisPool, Job
 from .derived_cache import load_image, save_image, load_result, load_telemetry
@@ -1219,6 +1220,10 @@ class MainWindow(QMainWindow):
         self.map_toggle = self._pane_button("지도 숨기기")
         direction_bar.addWidget(self.map_toggle)
         video_panel_layout.addLayout(direction_bar)
+        # Driving-state strip: shown only for clips recorded while moving.
+        self.drive_hud = DriveHud()
+        self.drive_hud.hide()
+        video_panel_layout.addWidget(self.drive_hud)
         video_panel_layout.addWidget(self.video_stack, 1)
         self.map_widget = MapWidget()
         self.map_widget.group_clicked.connect(self.map_group_selected)
@@ -2808,6 +2813,8 @@ class MainWindow(QMainWindow):
     def load_telemetry(self, group: ClipGroup) -> None:
         """Keep selection responsive while SEI is read off the UI thread."""
         self.current_telemetry = []
+        self.drive_hud.hide()
+        self.drive_hud.set_sample(None)
         self.current_event_point = None
         event_points = [
             [event.latitude, event.longitude]
@@ -2845,6 +2852,7 @@ class MainWindow(QMainWindow):
         if group is not self.current_group:
             return
         self.current_telemetry = samples
+        self.drive_hud.setVisible(is_driving(samples))
         reference = group.clips.get("front") or next(iter(group.clips.values()), None)
         if reference is not None:
             self._mark_done("sei", str(reference.path))
@@ -2871,6 +2879,8 @@ class MainWindow(QMainWindow):
 
     def update_telemetry(self, position_ms: int) -> None:
         sample = nearest_sample(self.current_telemetry, position_ms)
+        if self.drive_hud.isVisible():
+            self.drive_hud.set_sample(sample)
         if sample is None:
             for label in self.telemetry_labels.values():
                 label.setText("텔레메트리 없음")

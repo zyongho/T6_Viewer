@@ -1,6 +1,5 @@
-"""Generate the app icon: a square camera body filling the icon, a large
-lens in the middle, and a Tesla-style "T" sticker on the glass bulged by
-fisheye (barrel) distortion.
+"""Generate the app icon: a camera body filling the icon and a large lens
+whose six-blade aperture hints at the six car cameras. No brand marks.
 
     python tools/make_icon.py
 
@@ -9,10 +8,10 @@ Writes tesla_viewer/assets/app_icon.png (512 px) and app_icon.ico.
 
 from __future__ import annotations
 
+import math
 import sys
 from pathlib import Path
 
-import numpy as np
 from PySide6.QtCore import QPointF, QRectF, Qt
 from PySide6.QtGui import (
     QBrush, QColor, QGuiApplication, QImage, QLinearGradient, QPainter, QPainterPath, QPen, QRadialGradient,
@@ -22,74 +21,37 @@ SIZE = 512
 CENTER = SIZE / 2
 LENS_R = 196          # outer barrel
 GLASS_R = 146         # visible glass
-EMBLEM_SCALE = 1.55 * GLASS_R / 146
 OUT = Path(__file__).resolve().parent.parent / "tesla_viewer" / "assets"
 
 
-def emblem_path(scale: float, dx: float, dy: float) -> QPainterPath:
-    """A slim Tesla-style "T": a thin curved bar over long, thin arms that
-    run out sideways, and a narrow stem tapering to a point."""
-    def p(x, y):
-        return QPointF(dx + x * scale, dy + y * scale)
-    path = QPainterPath()
-    # thin top bar
-    path.moveTo(p(-112, -74))
-    path.quadTo(p(0, -108), p(112, -74))
-    path.lineTo(p(108, -64))
-    path.quadTo(p(0, -95), p(-108, -64))
-    path.closeSubpath()
-    # arms and stem
-    path.moveTo(p(-106, -54))
-    path.quadTo(p(0, -86), p(106, -54))
-    path.lineTo(p(100, -40))
-    path.quadTo(p(40, -56), p(8, -48))
-    path.lineTo(p(3, 112))
-    path.quadTo(p(0, 118), p(-3, 112))
-    path.lineTo(p(-8, -48))
-    path.quadTo(p(-40, -56), p(-100, -40))
-    path.closeSubpath()
-    return path
-
-
-def sticker_layer() -> np.ndarray:
-    """The flat sticker (RGBA), before the lens bends it."""
-    image = QImage(SIZE, SIZE, QImage.Format_RGBA8888)
-    image.fill(Qt.transparent)
-    painter = QPainter(image)
-    painter.setRenderHint(QPainter.Antialiasing)
-    # Big and a little off-centre, so part of it runs off the glass.
-    path = emblem_path(EMBLEM_SCALE, CENTER, CENTER + 22)
-    painter.setPen(QPen(QColor("#ffffff"), 9, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
-    painter.setBrush(QColor("#ffffff"))
-    painter.drawPath(path)                       # white sticker margin
-    painter.setPen(Qt.NoPen)
-    painter.setBrush(QColor("#e31937"))
-    painter.drawPath(path)
-    painter.end()
-    buffer = image.constBits()
-    return np.frombuffer(buffer, np.uint8).reshape(SIZE, SIZE, 4).copy()
-
-
-def fisheye(layer: np.ndarray, strength: float = 1.6) -> np.ndarray:
-    """Barrel distortion inside the glass: centre magnified, rim squeezed."""
-    ys, xs = np.mgrid[0:SIZE, 0:SIZE].astype(np.float32)
-    dx, dy = (xs - CENTER) / GLASS_R, (ys - CENTER) / GLASS_R
-    radius = np.sqrt(dx * dx + dy * dy)
-    source_radius = np.where(radius > 0, radius ** strength, 0)
-    factor = np.where(radius > 0, source_radius / np.maximum(radius, 1e-6), 0)
-    sx = CENTER + dx * factor * GLASS_R * 1.25
-    sy = CENTER + dy * factor * GLASS_R * 1.25
-    x0, y0 = np.floor(sx).astype(int), np.floor(sy).astype(int)
-    fx, fy = (sx - x0)[..., None], (sy - y0)[..., None]
-    def sample(x, y):
-        inside = (x >= 0) & (x < SIZE) & (y >= 0) & (y < SIZE)
-        out = np.zeros((SIZE, SIZE, 4), np.float32)
-        out[inside] = layer[y[inside], x[inside]]
-        return out
-    result = (sample(x0, y0) * (1 - fx) * (1 - fy) + sample(x0 + 1, y0) * fx * (1 - fy)
-              + sample(x0, y0 + 1) * (1 - fx) * fy + sample(x0 + 1, y0 + 1) * fx * fy)
-    result[radius > 1.0] = 0
-    return result.clip(0, 255).astype(np.uint8)
+def aperture(painter: QPainter, center: QPointF) -> None:
+    """Six overlapping blades leaving a hexagonal opening in the glass."""
+    opening = GLASS_R * 0.42
+    reach = GLASS_R * 1.35
+    clip = QPainterPath()
+    clip.addEllipse(center, GLASS_R, GLASS_R)
+    painter.save()
+    painter.setClipPath(clip)
+    for blade in range(6):
+        start = math.radians(blade * 60 - 90 + 12)
+        end = math.radians((blade + 1) * 60 - 90 + 12)
+        corner_a = QPointF(center.x() + opening * math.cos(start), center.y() + opening * math.sin(start))
+        corner_b = QPointF(center.x() + opening * math.cos(end), center.y() + opening * math.sin(end))
+        # each blade runs past the rim and is tilted a little, like a real iris
+        far_a = QPointF(center.x() + reach * math.cos(start + 0.55), center.y() + reach * math.sin(start + 0.55))
+        far_b = QPointF(center.x() + reach * math.cos(end + 0.55), center.y() + reach * math.sin(end + 0.55))
+        shade = QLinearGradient(corner_a, far_b)
+        tone = 58 + (blade % 2) * 14
+        shade.setColorAt(0.0, QColor(tone + 40, tone + 48, tone + 60))
+        shade.setColorAt(1.0, QColor(tone - 20, tone - 14, tone - 6))
+        blade_path = QPainterPath(corner_a)
+        for point in (corner_b, far_b, far_a):
+            blade_path.lineTo(point)
+        blade_path.closeSubpath()
+        painter.setPen(QPen(QColor(210, 220, 232, 150), 2.5))
+        painter.setBrush(QBrush(shade))
+        painter.drawPath(blade_path)
+    painter.restore()
 
 
 def compose() -> QImage:
@@ -136,10 +98,7 @@ def compose() -> QImage:
     painter.setPen(Qt.NoPen)
     painter.setBrush(QBrush(glass))
     painter.drawEllipse(center, GLASS_R, GLASS_R)
-    # the bent sticker on the glass
-    bent = fisheye(sticker_layer())
-    sticker = QImage(bent.data, SIZE, SIZE, SIZE * 4, QImage.Format_RGBA8888).copy()
-    painter.drawImage(0, 0, sticker)
+    aperture(painter, center)
     # reflections over everything, so it sits under the glass surface
     k = GLASS_R / 176
     glass_clip = QPainterPath()
